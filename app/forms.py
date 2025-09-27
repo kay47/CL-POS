@@ -25,32 +25,99 @@ class RegisterForm(FlaskForm):
             raise ValidationError('Username already exists. Choose a different one.')
 
 class ProductForm(FlaskForm):
-    sku = StringField('SKU', validators=[DataRequired(), Length(max=50)])
-    name = StringField('Product Name', validators=[DataRequired(), Length(max=100)])
-    description = TextAreaField('Description')
-    purchase_price = DecimalField('Purchase Price (GHS)', validators=[DataRequired(), NumberRange(min=0)], places=2)
+    # Add SKU field for editing existing products
+    sku = StringField(
+        'SKU',
+        validators=[DataRequired(), Length(min=1, max=20)],
+        render_kw={'readonly': True}  # Make it readonly since it's auto-generated
+    )
     
-    # Only full price is manually entered - half and quarter are calculated automatically
-    full_price = DecimalField('Full Pack Price (GHS)', validators=[DataRequired(), NumberRange(min=0.01)], places=2)
+    category = SelectField(
+        'Category',
+        choices=Product.CATEGORIES,
+        validators=[DataRequired()],
+        render_kw={'class': 'form-select'}
+    )
     
-    quantity = IntegerField('Quantity (Full Packs)', validators=[DataRequired(), NumberRange(min=0)])
+    name = StringField(
+        'Product Name',
+        validators=[DataRequired(), Length(min=1, max=100)],
+        render_kw={'placeholder': 'Enter product name...'}
+    )
+    
+    description = TextAreaField(
+        'Description',
+        validators=[Length(max=500)],
+        render_kw={'rows': 3, 'placeholder': 'Optional product description...'}
+    )
+    
+    purchase_price = DecimalField(
+        'Purchase Price (GHS)',
+        validators=[DataRequired(), NumberRange(min=0, max=999999.99)],
+        places=2,
+        render_kw={'step': '0.01', 'min': '0', 'placeholder': '0.00'}
+    )
+    
+    full_price = DecimalField(
+        'Selling Price (GHS)',
+        validators=[DataRequired(), NumberRange(min=0, max=999999.99)],
+        places=2,
+        render_kw={'step': '0.01', 'min': '0', 'placeholder': '0.00'}
+    )
+    
+    # Add half_price field
+    half_price = DecimalField(
+        'Half Price (GHS)',
+        validators=[Optional(), NumberRange(min=0, max=999999.99)],
+        places=2,
+        render_kw={'step': '0.01', 'min': '0', 'placeholder': '0.00'}
+    )
+
+    # Add quarter_price field
+    quarter_price = DecimalField(
+        'Quarter Price (GHS)',
+        validators=[Optional(), NumberRange(min=0, max=999999.99)],
+        places=2,
+        render_kw={'step': '0.01', 'min': '0', 'placeholder': '0.00'}
+)
+    
+    quantity = IntegerField(
+        'Initial Stock Quantity',
+        validators=[DataRequired(), NumberRange(min=0, max=999999)],
+        default=0,
+        render_kw={'min': '0', 'placeholder': '0'}
+    )
+    
     submit = SubmitField('Save Product')
     
     def __init__(self, original_sku=None, *args, **kwargs):
         super(ProductForm, self).__init__(*args, **kwargs)
         self.original_sku = original_sku
+        
+        # For new products, remove the SKU field requirement
+        if not self.sku.data:
+            self.sku.validators = []
     
-    def validate_sku(self, sku):
-        if sku.data != self.original_sku:
-            product = Product.query.filter_by(sku=sku.data).first()
-            if product:
-                raise ValidationError('SKU already exists. Choose a different one.')
+    def validate_purchase_price(self, field):
+        if field.data >= self.full_price.data:
+            raise ValidationError('Purchase price must be less than selling price.')
     
-    def validate_full_price(self, full_price):
-        if hasattr(self, 'purchase_price') and self.purchase_price.data:
-            if full_price.data <= self.purchase_price.data:
-                raise ValidationError('Full pack selling price must be greater than purchase price.')
-
+    def validate_full_price(self, field):
+        if field.data <= self.purchase_price.data:
+            raise ValidationError('Selling price must be greater than purchase price.')
+    
+    def validate_half_price(self, field):
+        if field.data and field.data >= self.full_price.data:
+            raise ValidationError('Half price must be less than full price.')
+    
+    # And add this validation method:
+    def validate_quarter_price(self, field):
+        if field.data:
+            if field.data >= self.half_price.data:
+                raise ValidationError('Quarter price must be less than half price.')
+        if field.data >= self.full_price.data:
+            raise ValidationError('Quarter price must be less than full price.')
+        
 class EditUserForm(FlaskForm):
     username = StringField('Username', validators=[
         DataRequired(), 

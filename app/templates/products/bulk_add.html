@@ -18,6 +18,7 @@
                         <li>Download the CSV template below</li>
                         <li>Fill in your product data using the template format</li>
                         <li>Upload your completed CSV file</li>
+                        <li>SKUs will be automatically generated based on category</li>
                         <li>Review the results and fix any errors if needed</li>
                     </ol>
                 </div>
@@ -82,16 +83,16 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td><code>sku</code></td>
-                                        <td><span class="badge bg-danger">Required</span></td>
-                                        <td>Text</td>
-                                        <td>Unique product SKU/code</td>
-                                    </tr>
-                                    <tr>
                                         <td><code>name</code></td>
                                         <td><span class="badge bg-danger">Required</span></td>
                                         <td>Text</td>
                                         <td>Product name</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>category</code></td>
+                                        <td><span class="badge bg-danger">Required</span></td>
+                                        <td>Text</td>
+                                        <td>Product category (electronics, clothing, food, etc.)</td>
                                     </tr>
                                     <tr>
                                         <td><code>description</code></td>
@@ -121,13 +122,48 @@
                             </table>
                         </div>
                         
+                        <div class="alert alert-success mt-3">
+                            <h6><i class="bi bi-check-circle"></i> Category Options:</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <ul class="mb-0">
+                                        <li>electronics</li>
+                                        <li>clothing</li>
+                                        <li>food</li>
+                                        <li>beauty</li>
+                                        <li>books</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-4">
+                                    <ul class="mb-0">
+                                        <li>home</li>
+                                        <li>sports</li>
+                                        <li>automotive</li>
+                                        <li>toys</li>
+                                        <li>health</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-4">
+                                    <ul class="mb-0">
+                                        <li>jewelry</li>
+                                        <li>music</li>
+                                        <li>pets</li>
+                                        <li>office</li>
+                                        <li>tools</li>
+                                        <li>other</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="alert alert-warning mt-3">
                             <h6><i class="bi bi-exclamation-triangle"></i> Important Notes:</h6>
                             <ul class="mb-0">
-                                <li>Each SKU must be unique - duplicate SKUs will be skipped</li>
+                                <li><strong>SKUs are auto-generated</strong> based on category (e.g., ELE0001, CLO0001)</li>
                                 <li>Full price must be greater than purchase price</li>
-                                <li>Half and quarter pack prices are calculated automatically</li>
+                                <li>Half price is automatically calculated as 50% of full price</li>
                                 <li>Numbers should use decimal point (.) not comma</li>
+                                <li>Category must be exactly one of the valid options listed above</li>
                                 <li>The first row must contain column headers exactly as shown above</li>
                             </ul>
                         </div>
@@ -145,8 +181,8 @@
                             <table class="table table-bordered table-sm">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th>sku</th>
                                         <th>name</th>
+                                        <th>category</th>
                                         <th>description</th>
                                         <th>purchase_price</th>
                                         <th>full_price</th>
@@ -155,32 +191,36 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td>RICE001</td>
                                         <td>Premium Rice 5kg</td>
+                                        <td>food</td>
                                         <td>High quality jasmine rice</td>
                                         <td>25.00</td>
                                         <td>35.00</td>
                                         <td>50</td>
                                     </tr>
                                     <tr>
-                                        <td>SOAP001</td>
-                                        <td>Washing Soap Bar</td>
-                                        <td>Multi-purpose cleaning soap</td>
-                                        <td>2.50</td>
-                                        <td>4.00</td>
-                                        <td>100</td>
+                                        <td>Smartphone Case</td>
+                                        <td>electronics</td>
+                                        <td>Protective phone case</td>
+                                        <td>8.00</td>
+                                        <td>15.00</td>
+                                        <td>25</td>
                                     </tr>
                                     <tr>
-                                        <td>OIL001</td>
-                                        <td>Cooking Oil 1L</td>
-                                        <td>Pure vegetable oil</td>
-                                        <td>8.00</td>
+                                        <td>Cotton T-Shirt</td>
+                                        <td>clothing</td>
+                                        <td>100% cotton casual wear</td>
                                         <td>12.00</td>
-                                        <td>25</td>
+                                        <td>20.00</td>
+                                        <td>30</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
+                        <p class="text-success mt-2">
+                            <i class="bi bi-info-circle"></i> 
+                            <strong>Result:</strong> These will get SKUs like FOO0001, ELE0001, CLO0001 automatically!
+                        </p>
                     </div>
                 </div>
 
@@ -243,49 +283,6 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.disabled = false;
         }, 10000);
     });
-    
-    // Drag and drop functionality
-    const cardBody = document.querySelector('.card-body');
-    
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        cardBody.addEventListener(eventName, preventDefaults, false);
-    });
-    
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    
-    ['dragenter', 'dragover'].forEach(eventName => {
-        cardBody.addEventListener(eventName, highlight, false);
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        cardBody.addEventListener(eventName, unhighlight, false);
-    });
-    
-    function highlight(e) {
-        cardBody.classList.add('border-primary', 'bg-light');
-    }
-    
-    function unhighlight(e) {
-        cardBody.classList.remove('border-primary', 'bg-light');
-    }
-    
-    cardBody.addEventListener('drop', handleDrop, false);
-    
-    function handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        
-        if (files.length > 0) {
-            fileInput.files = files;
-            
-            // Trigger change event for validation
-            const event = new Event('change', { bubbles: true });
-            fileInput.dispatchEvent(event);
-        }
-    }
 });
 </script>
 {% endblock %}

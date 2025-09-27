@@ -54,152 +54,183 @@ class User(UserMixin, db.Model):
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    sku = db.Column(db.String(50), unique=True, nullable=False)
+    sku = db.Column(db.String(20), unique=True, nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
+    category = db.Column(db.String(50), nullable=False, index=True)
     description = db.Column(db.Text)
-    purchase_price = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
-    
-    # Only full_price is stored - half and quarter are calculated
+    purchase_price = db.Column(db.Numeric(10, 2), nullable=False)
     full_price = db.Column(db.Numeric(10, 2), nullable=False)
-    
-    # Keep original price field for backward compatibility
-    price = db.Column(db.Numeric(10, 2), nullable=False)  # Will be set to full_price
-    
+    half_price = db.Column(db.Numeric(10, 2), nullable=True)  # ADD THIS FIELD
+    price = db.Column(db.Numeric(10, 2), nullable=False)  # For backward compatibility
     quantity = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
+    # Relationship to sales
     sale_items = db.relationship('SaleItem', backref='product', lazy=True)
     
+    # Define product categories
+    CATEGORIES = [
+        ('electronics', 'Electronics'),
+        ('clothing', 'Clothing'),
+        ('food', 'Food & Beverages'),
+        ('beauty', 'Beauty & Personal Care'),
+        ('books', 'Books & Stationery'),
+        ('home', 'Home & Garden'),
+        ('sports', 'Sports & Recreation'),
+        ('automotive', 'Automotive'),
+        ('toys', 'Toys & Games'),
+        ('health', 'Health & Wellness'),
+        ('jewelry', 'Jewelry & Accessories'),
+        ('music', 'Music & Instruments'),
+        ('pets', 'Pet Supplies'),
+        ('office', 'Office Supplies'),
+        ('tools', 'Tools & Hardware'),
+        ('other', 'Other')
+    ]
+    
+    @staticmethod
+    def generate_sku(category):
+        """Generate a unique SKU based on category prefix + sequential number"""
+        # Get category prefix (first 3 letters, uppercase)
+        category_prefix = category.upper()[:3]
+        
+        # Find the highest existing SKU number for this category
+        existing_skus = db.session.query(Product.sku).filter(
+            Product.sku.like(f'{category_prefix}%')
+        ).all()
+        
+        if not existing_skus:
+            # First product in this category
+            next_number = 1
+        else:
+            # Extract numbers from existing SKUs and find the highest
+            numbers = []
+            for (sku,) in existing_skus:
+                try:
+                    # Extract the numeric part after the category prefix
+                    number_part = sku[3:]  # Remove first 3 letters
+                    if number_part.isdigit():
+                        numbers.append(int(number_part))
+                except (ValueError, IndexError):
+                    continue
+            
+            next_number = max(numbers, default=0) + 1
+        
+        # Format as 4-digit number with leading zeros
+        return f"{category_prefix}{next_number:04d}"
+    
+    @classmethod
+    def create_with_auto_sku(cls, name, category, description=None, purchase_price=0, 
+                           full_price=0, half_price=None, quantity=0):
+        """Create a new product with auto-generated SKU"""
+        # Generate unique SKU
+        sku = cls.generate_sku(category)
+        
+        # Ensure SKU is unique (in case of race conditions)
+        counter = 1
+        original_sku = sku
+        while cls.query.filter_by(sku=sku).first():
+            # Extract base and number
+            base = original_sku[:3]
+            base_number = int(original_sku[3:])
+            sku = f"{base}{(base_number + counter):04d}"
+            counter += 1
+        
+        # Auto-calculate half_price if not provided
+        if half_price is None and full_price:
+            half_price = Decimal(str(full_price)) / Decimal('2')
+        
+        # Create the product
+        product = cls(
+            sku=sku,
+            name=name,
+            category=category,
+            description=description or '',
+            purchase_price=Decimal(str(purchase_price)),
+            full_price=Decimal(str(full_price)),
+            half_price=Decimal(str(half_price)) if half_price else None,
+            price=Decimal(str(full_price)),  # Backward compatibility
+            quantity=quantity
+        )
+        
+        return product
+    
+    def get_price_for_unit(self, unit_type='full'):
+        """Get price based on unit type"""
+        if unit_type == 'half':
+            return self.half_price if self.half_price else (self.full_price / Decimal('2'))
+        elif unit_type == 'quarter':
+            return self.full_price / Decimal('4')
+        else:  # full
+            return self.full_price
+    
+    def get_profit_for_unit(self, unit_type='full'):
+        """Calculate profit for a unit type"""
+        selling_price = self.get_price_for_unit(unit_type)
+        if unit_type == 'half':
+            cost = self.purchase_price / Decimal('2')
+        elif unit_type == 'quarter':
+            cost = self.purchase_price / Decimal('4')
+        else:  # full
+            cost = self.purchase_price
+        
+        return selling_price - cost
+    
     @property
-    def half_price(self):
-        """Half pack price is 50% of full pack price"""
-        return float(self.full_price) * 0.5
+    def category_display(self):
+        """Get human-readable category name"""
+        category_dict = dict(self.CATEGORIES)
+        return category_dict.get(self.category, self.category.title())
+    
+    @property
+    def profit_margin(self):
+        """Calculate profit margin percentage"""
+        if self.full_price > 0:
+            profit = self.full_price - self.purchase_price
+            return (profit / self.full_price) * 100
+        return 0
+    
+    @property
+    def is_low_stock(self):
+        """Check if product is low on stock"""
+        return self.quantity <= 5
+    
+    @property
+    def is_out_of_stock(self):
+        """Check if product is out of stock"""
+        return self.quantity <= 0
     
     @property
     def quarter_price(self):
-        """Quarter pack price is 25% of full pack price"""
-        return float(self.full_price) * 0.25
-    
-    def get_price_for_unit(self, unit_type):
-        """Get price based on unit type"""
-        if unit_type == 'full':
-            return float(self.full_price)
-        elif unit_type == 'half':
-            return self.half_price
-        elif unit_type == 'quarter':
-            return self.quarter_price
-        return float(self.full_price)
+        """Calculate quarter price as 25% of full price"""
+        return self.full_price / Decimal('4')
     
     @property
-    def full_pack_profit(self):
+    def calculated_half_price(self):
+        """Get half price, using stored value or calculating from full price"""
+        return self.half_price if self.half_price else (self.full_price / Decimal('2'))
+    
+    @property
+    def profit_per_quarter(self):
+        """Calculate profit for quarter pack"""
+        return self.quarter_price - (self.purchase_price / Decimal('4'))
+    
+    @property
+    def profit_per_half(self):
+        """Calculate profit for half pack"""
+        half_price = self.calculated_half_price
+        return half_price - (self.purchase_price / Decimal('2'))
+    
+    @property
+    def profit_per_full(self):
         """Calculate profit for full pack"""
-        return float(self.full_price) - float(self.purchase_price)
-    
-    @property
-    def half_pack_profit(self):
-        """Half pack profit is 50% of full pack profit"""
-        return self.full_pack_profit * 0.5
-    
-    @property
-    def quarter_pack_profit(self):
-        """Quarter pack profit is 25% of full pack profit"""
-        return self.full_pack_profit * 0.25
-    
-    def get_profit_for_unit(self, unit_type):
-        """Calculate profit for specific unit type"""
-        if unit_type == 'full':
-            return self.full_pack_profit
-        elif unit_type == 'half':
-            return self.half_pack_profit
-        elif unit_type == 'quarter':
-            return self.quarter_pack_profit
-        else:
-            return self.full_pack_profit
-    
-    def get_profit_percentage_for_unit(self, unit_type):
-        """Calculate profit percentage for specific unit type"""
-        if unit_type == 'full':
-            cost = float(self.purchase_price)
-        elif unit_type == 'half':
-            cost = float(self.purchase_price) * 0.5
-        elif unit_type == 'quarter':
-            cost = float(self.purchase_price) * 0.25
-        else:
-            cost = float(self.purchase_price)
-            
-        if cost == 0:
-            return 0
-        return (self.get_profit_for_unit(unit_type) / cost) * 100
-    
-    @property
-    def profit(self):
-        """Calculate profit per full unit (for backward compatibility)"""
-        return self.full_pack_profit
-    
-    @property
-    def profit_percentage(self):
-        """Calculate profit percentage for full unit (for backward compatibility)"""
-        if float(self.purchase_price) == 0:
-            return 0
-        return (self.full_pack_profit / float(self.purchase_price)) * 100
-    
-    @property
-    def stock_value_cost(self):
-        """Calculate total stock value at cost price"""
-        return float(self.purchase_price) * self.quantity
-
-    @property
-    def stock_value_retail(self):
-        """Calculate total stock value at retail price"""
-        return float(self.full_price) * self.quantity
-
-    @property
-    def potential_profit_value(self):
-        """Calculate potential profit if all stock is sold"""
-        return self.stock_value_retail - self.stock_value_cost
-
-    @classmethod
-    def get_total_stock_values(cls):
-        """Get total stock values across all products"""
-        result = db.session.query(
-            func.sum(cls.purchase_price * cls.quantity).label('total_cost_value'),
-            func.sum(cls.full_price * cls.quantity).label('total_retail_value')
-        ).first()
-        
-        total_cost = float(result.total_cost_value or 0)
-        total_retail = float(result.total_retail_value or 0)
-        total_potential_profit = total_retail - total_cost
-        
-        return {
-            'total_cost_value': total_cost,
-            'total_retail_value': total_retail,
-            'total_potential_profit': total_potential_profit
-        }
-
-    @classmethod
-    def get_stock_statistics(cls):
-        """Get comprehensive stock statistics"""
-        total_products = cls.query.count()
-        low_stock_count = cls.query.filter(cls.quantity <= 5).count()
-        out_of_stock_count = cls.query.filter(cls.quantity == 0).count()
-        in_stock_count = total_products - out_of_stock_count
-        
-        # Get total quantities
-        total_quantity = db.session.query(func.sum(cls.quantity)).scalar() or 0
-        
-        return {
-            'total_products': total_products,
-            'in_stock_count': in_stock_count,
-            'low_stock_count': low_stock_count,
-            'out_of_stock_count': out_of_stock_count,
-            'total_quantity': int(total_quantity)
-        }
+        return self.full_price - self.purchase_price
     
     def __repr__(self):
-        return f'<Product {self.name}>'
+        return f'<Product {self.sku}: {self.name}>'
 
+# Rest of your models remain the same...
 class Sale(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_number = db.Column(db.String(20), unique=True, nullable=False)

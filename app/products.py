@@ -1,3 +1,5 @@
+# Update your products.py routes
+
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, make_response
 from flask_login import login_required, current_user
 from app.models import Product
@@ -16,10 +18,12 @@ bp = Blueprint('products', __name__)
 @manager_required
 def list_products():
     search = request.args.get('q', '').strip()
+    category_filter = request.args.get('category', 'all')
     page = request.args.get('page', 1, type=int)
     
     query = Product.query
     
+    # Search filter
     if search:
         search_term = f"%{search}%"
         query = query.filter(
@@ -29,6 +33,10 @@ def list_products():
                 Product.description.ilike(search_term)
             )
         )
+    
+    # Category filter
+    if category_filter and category_filter != 'all':
+        query = query.filter(Product.category == category_filter)
     
     products = query.order_by(Product.name).paginate(
         page=page, per_page=20, error_out=False
@@ -50,37 +58,113 @@ def list_products():
     low_stock_count = Product.query.filter(Product.quantity <= 5).count()
     out_of_stock_count = Product.query.filter(Product.quantity == 0).count()
     
+    # Category statistics
+    category_stats = db.session.query(
+        Product.category,
+        func.count(Product.id).label('count'),
+        func.sum(Product.quantity).label('total_quantity'),
+        func.sum(Product.purchase_price * Product.quantity).label('total_value')
+    ).group_by(Product.category).all()
+    
     return render_template('products/list.html', 
                          products=products, 
                          search=search,
+                         category_filter=category_filter,
+                         categories=Product.CATEGORIES,
                          total_stock_value=total_stock_value,
                          total_retail_value=total_retail_value,
                          potential_profit=potential_profit,
                          total_products=total_products,
                          low_stock_count=low_stock_count,
-                         out_of_stock_count=out_of_stock_count)
+                         out_of_stock_count=out_of_stock_count,
+                         category_stats=category_stats)
+
+# Update the add_product and edit_product functions in products.py
 
 @bp.route('/add', methods=['GET', 'POST'])
 @login_required
 @manager_required
 def add_product():
     form = ProductForm()
+    
+    # For new products, we don't need SKU in the form
+    if request.method == 'GET':
+        form.sku.data = '[Auto-generated]'  # Show this in the form
+    
     if form.validate_on_submit():
-        product = Product(
-            sku=form.sku.data.strip(),
-            name=form.name.data.strip(),
-            description=form.description.data.strip() if form.description.data else '',
-            purchase_price=form.purchase_price.data,
-            full_price=form.full_price.data,
-            price=form.full_price.data,  # For backward compatibility
-            quantity=form.quantity.data
-        )
-        db.session.add(product)
-        db.session.commit()
-        flash(f'Product {product.name} added successfully!', 'success')
-        return redirect(url_for('products.list_products'))
+        try:
+            # Auto-calculate half_price if not provided
+            half_price = form.half_price.data
+            if not half_price and form.full_price.data:
+                half_price = form.full_price.data / 2
+            
+            # Create product with auto-generated SKU
+            product = Product.create_with_auto_sku(
+                name=form.name.data.strip(),
+                category=form.category.data,
+                description=form.description.data.strip() if form.description.data else '',
+                purchase_price=form.purchase_price.data,
+                full_price=form.full_price.data,
+                half_price=half_price,
+                quantity=form.quantity.data
+            )
+            
+            db.session.add(product)
+            db.session.commit()
+            
+            flash(f'Product "{product.name}" added successfully with SKU: {product.sku}!', 'success')
+            return redirect(url_for('products.list_products'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating product: {str(e)}', 'error')
     
     return render_template('products/edit.html', form=form, title='Add Product')
+
+@bp.route('/<int:product_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_product(product_id):
+    product = Product.query.get_or_404(product_id)
+    form = ProductForm(original_sku=product.sku, obj=product)
+    
+    if form.validate_on_submit():
+        try:
+            # Check if category changed - if so, generate new SKU
+            if form.category.data != product.category:
+                new_sku = Product.generate_sku(form.category.data)
+                
+                # Ensure uniqueness
+                counter = 1
+                original_sku = new_sku
+                while Product.query.filter_by(sku=new_sku).filter(Product.id != product.id).first():
+                    base = original_sku[:3]
+                    base_number = int(original_sku[3:])
+                    new_sku = f"{base}{(base_number + counter):04d}"
+                    counter += 1
+                
+                product.sku = new_sku
+                flash(f'Category changed - New SKU generated: {new_sku}', 'info')
+            
+            # Update other fields
+            product.name = form.name.data.strip()
+            product.category = form.category.data
+            product.description = form.description.data.strip() if form.description.data else ''
+            product.purchase_price = form.purchase_price.data
+            product.full_price = form.full_price.data
+            product.half_price = form.half_price.data if form.half_price.data else product.full_price / 2
+            product.price = form.full_price.data  # For backward compatibility
+            product.quantity = form.quantity.data
+            
+            db.session.commit()
+            flash(f'Product "{product.name}" updated successfully!', 'success')
+            return redirect(url_for('products.list_products'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating product: {str(e)}', 'error')
+    
+    return render_template('products/edit.html', form=form, title='Edit Product', product=product)
 
 @bp.route('/bulk-add', methods=['GET', 'POST'])
 @login_required
@@ -111,24 +195,24 @@ def bulk_add_products():
             
             for row_num, row in enumerate(csv_reader, start=2):
                 try:
-                    # Validate required fields
-                    if not all([row.get('sku'), row.get('name'), row.get('purchase_price'), row.get('full_price')]):
-                        errors.append(f"Row {row_num}: Missing required fields")
+                    # Validate required fields (no SKU needed)
+                    if not all([row.get('name'), row.get('category'), row.get('purchase_price'), row.get('full_price')]):
+                        errors.append(f"Row {row_num}: Missing required fields (name, category, purchase_price, full_price)")
                         continue
                     
-                    # Check if SKU already exists
-                    if Product.query.filter_by(sku=row['sku'].strip()).first():
-                        errors.append(f"Row {row_num}: SKU '{row['sku']}' already exists")
+                    # Validate category
+                    valid_categories = [cat[0] for cat in Product.CATEGORIES]
+                    if row['category'] not in valid_categories:
+                        errors.append(f"Row {row_num}: Invalid category '{row['category']}'. Valid options: {', '.join(valid_categories)}")
                         continue
                     
-                    # Create product
-                    product = Product(
-                        sku=row['sku'].strip(),
+                    # Create product with auto-generated SKU
+                    product = Product.create_with_auto_sku(
                         name=row['name'].strip(),
+                        category=row['category'],
                         description=row.get('description', '').strip(),
                         purchase_price=Decimal(str(row['purchase_price'])),
                         full_price=Decimal(str(row['full_price'])),
-                        price=Decimal(str(row['full_price'])),
                         quantity=int(row.get('quantity', 0))
                     )
                     
@@ -143,7 +227,7 @@ def bulk_add_products():
             db.session.commit()
             
             if added_count > 0:
-                flash(f'Successfully added {added_count} products', 'success')
+                flash(f'Successfully added {added_count} products with auto-generated SKUs', 'success')
             
             if errors:
                 flash(f'Errors: {"; ".join(errors[:5])}{"..." if len(errors) > 5 else ""}', 'warning')
@@ -154,160 +238,75 @@ def bulk_add_products():
     
     return render_template('products/bulk_add.html')
 
-@bp.route('/bulk-update', methods=['POST'])
+@bp.route('/download-template')
 @login_required
 @manager_required
-def bulk_update_products():
-    """Bulk update product quantities and prices"""
-    try:
-        updates = request.json.get('updates', [])
-        if not updates:
-            return jsonify({'success': False, 'error': 'No updates provided'})
-        
-        updated_count = 0
-        errors = []
-        
-        for update in updates:
-            try:
-                product_id = int(update.get('id'))
-                product = Product.query.get(product_id)
-                
-                if not product:
-                    errors.append(f'Product ID {product_id} not found')
-                    continue
-                
-                # Update fields if provided
-                if 'quantity' in update:
-                    product.quantity = int(update['quantity'])
-                
-                if 'purchase_price' in update:
-                    product.purchase_price = Decimal(str(update['purchase_price']))
-                
-                if 'full_price' in update:
-                    product.full_price = Decimal(str(update['full_price']))
-                    product.price = product.full_price  # Keep backward compatibility
-                
-                updated_count += 1
-                
-            except (ValueError, TypeError) as e:
-                errors.append(f'Invalid data for product {update.get("id", "unknown")}: {str(e)}')
-            except Exception as e:
-                errors.append(f'Error updating product {update.get("id", "unknown")}: {str(e)}')
-        
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'updated_count': updated_count,
-            'errors': errors
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
-
-@bp.route('/bulk-delete', methods=['POST'])
-@login_required
-@admin_required
-def bulk_delete_products():
-    """Bulk delete selected products"""
-    try:
-        product_ids = request.json.get('product_ids', [])
-        if not product_ids:
-            return jsonify({'success': False, 'error': 'No products selected'})
-        
-        # Get products and check if they have sales history
-        products = Product.query.filter(Product.id.in_(product_ids)).all()
-        
-        cannot_delete = []
-        can_delete = []
-        
-        for product in products:
-            if product.sale_items:
-                cannot_delete.append(product.name)
-            else:
-                can_delete.append(product)
-        
-        # Delete products that can be deleted
-        deleted_count = 0
-        for product in can_delete:
-            db.session.delete(product)
-            deleted_count += 1
-        
-        db.session.commit()
-        
-        message = f'Deleted {deleted_count} products'
-        if cannot_delete:
-            message += f'. Could not delete {len(cannot_delete)} products with sales history: {", ".join(cannot_delete[:3])}'
-            if len(cannot_delete) > 3:
-                message += '...'
-        
-        return jsonify({
-            'success': True,
-            'deleted_count': deleted_count,
-            'cannot_delete_count': len(cannot_delete),
-            'message': message
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
-
-@bp.route('/<int:product_id>/edit', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def edit_product(product_id):
-    product = Product.query.get_or_404(product_id)
-    form = ProductForm(original_sku=product.sku, obj=product)
+def download_csv_template():
+    """Download CSV template for bulk upload"""
+    output = io.StringIO()
+    writer = csv.writer(output)
     
-    if form.validate_on_submit():
-        product.sku = form.sku.data.strip()
-        product.name = form.name.data.strip()
-        product.description = form.description.data.strip() if form.description.data else ''
-        product.purchase_price = form.purchase_price.data
-        product.full_price = form.full_price.data
-        product.price = form.full_price.data  # For backward compatibility
-        product.quantity = form.quantity.data
-        db.session.commit()
-        flash(f'Product {product.name} updated successfully!', 'success')
-        return redirect(url_for('products.list_products'))
+    # Write header (no SKU field)
+    writer.writerow(['name', 'category', 'description', 'purchase_price', 'full_price', 'quantity'])
     
-    return render_template('products/edit.html', form=form, title='Edit Product', product=product)
+    # Write sample data with valid categories
+    writer.writerow(['Sample Electronics Item', 'electronics', 'Sample description', '10.00', '15.00', '100'])
+    writer.writerow(['Sample Clothing Item', 'clothing', 'Another description', '5.50', '8.25', '50'])
+    writer.writerow(['Sample Food Item', 'food', 'Food item description', '2.00', '3.50', '200'])
+    
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = 'attachment; filename=products_template.csv'
+    
+    return response
 
+# Keep other existing routes unchanged
 @bp.route('/<int:product_id>/delete', methods=['POST'])
 @login_required
 @admin_required
 def delete_product(product_id):
     product = Product.query.get_or_404(product_id)
     
-    # Check if product has sales history
     if product.sale_items:
         flash('Cannot delete product with existing sales history.', 'danger')
         return redirect(url_for('products.list_products'))
     
     product_name = product.name
+    product_sku = product.sku
     db.session.delete(product)
     db.session.commit()
-    flash(f'Product {product_name} deleted successfully!', 'info')
+    flash(f'Product "{product_name}" (SKU: {product_sku}) deleted successfully!', 'info')
     return redirect(url_for('products.list_products'))
 
 @bp.route('/search')
 @login_required
 def search_products():
     q = request.args.get('q', '').strip()
-    if not q:
+    category = request.args.get('category', '')
+    
+    if not q and not category:
         return jsonify([])
 
-    products = Product.query.filter(
-        Product.name.ilike(f'%{q}%') |
-        Product.sku.ilike(f'%{q}%')
-    ).all()
+    query = Product.query
+    
+    if q:
+        search_term = f'%{q}%'
+        query = query.filter(
+            Product.name.ilike(search_term) |
+            Product.sku.ilike(search_term)
+        )
+    
+    if category and category != 'all':
+        query = query.filter(Product.category == category)
+
+    products = query.all()
 
     results = [
         {
             "id": p.id,
             "sku": p.sku,
             "name": p.name,
+            "category": p.category_display,
             "price": float(p.full_price),
             "stock": float(p.quantity),
             "status": (
@@ -323,12 +322,19 @@ def search_products():
 @bp.route('/all')
 @login_required
 def all_products():
-    products = Product.query.all()
+    category = request.args.get('category', '')
+    
+    query = Product.query
+    if category and category != 'all':
+        query = query.filter(Product.category == category)
+    
+    products = query.all()
     results = [
         {
             "id": p.id,
             "sku": p.sku,
             "name": p.name,
+            "category": p.category_display,
             "price": float(p.full_price),
             "quantity": float(p.quantity),
             "status": (
@@ -340,24 +346,3 @@ def all_products():
         for p in products
     ]
     return jsonify(results)
-
-@bp.route('/download-template')
-@login_required
-@manager_required
-def download_csv_template():
-    """Download CSV template for bulk upload"""
-    output = io.StringIO()
-    writer = csv.writer(output)
-    
-    # Write header
-    writer.writerow(['sku', 'name', 'description', 'purchase_price', 'full_price', 'quantity'])
-    
-    # Write sample data
-    writer.writerow(['SAMPLE001', 'Sample Product 1', 'Sample description', '10.00', '15.00', '100'])
-    writer.writerow(['SAMPLE002', 'Sample Product 2', 'Another description', '5.50', '8.25', '50'])
-    
-    response = make_response(output.getvalue())
-    response.headers['Content-Type'] = 'text/csv'
-    response.headers['Content-Disposition'] = 'attachment; filename=products_template.csv'
-    
-    return response
