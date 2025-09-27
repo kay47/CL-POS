@@ -1,0 +1,456 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - POS System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h2">Dashboard</h1>
+        <p class="text-muted">
+            <i class="bi bi-calendar-date"></i> {{ current_date }}
+        </p>
+    </div>
+</div>
+<!--QUICK ACTION-->
+<div class="row">
+    <div class="col-lg-3 mb-4">
+        <div class="card sticky-top" style="top: 1rem;">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body p-2">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('pos.pos_page') }}" class="btn btn-success d-flex align-items-center p-3">
+                        <i class="bi bi-cart-plus fs-5 me-3"></i>
+                        <span>Point of Sale</span>
+                    </a>
+
+                    <a href="{{ url_for('pos.list_sales') }}" class="btn btn-outline-success d-flex align-items-center p-3">
+                        <i class="bi bi-list-check fs-5 me-3"></i>
+                        <span>All Sales</span>
+                    </a>
+
+                    <a href="{{ url_for('expenses.add_expense') }}" class="btn btn-outline-danger d-flex align-items-center p-3">
+                        <i class="bi bi-plus-square fs-5 me-3"></i>
+                        <span>Add Expense</span>
+                    </a>
+
+                    <a href="{{ url_for('expenses.expense_summary') }}" class="btn btn-outline-info d-flex align-items-center p-3">
+                        <i class="bi bi-pie-chart fs-5 me-3"></i>
+                        <span>Expense Analytics</span>
+                    </a>
+
+                    {% if current_user.role in ['manager', 'admin'] %}
+                    <a href="{{ url_for('products.list_products') }}" class="btn btn-primary d-flex align-items-center p-3">
+                        <i class="bi bi-box-seam fs-5 me-3"></i>
+                        <span>Products</span>
+                    </a>
+
+                    <a href="{{ url_for('products.add_product') }}" class="btn btn-info d-flex align-items-center p-3">
+                        <i class="bi bi-plus-circle fs-5 me-3"></i>
+                        <span>Add Product</span>
+                    </a>
+
+                    <a href="{{ url_for('expenses.list_expenses') }}" class="btn btn-danger d-flex align-items-center p-3">
+                        <i class="bi bi-receipt fs-5 me-3"></i>
+                        <span>Expenses</span>
+                    </a>
+
+                    <a href="{{ url_for('reports.sales_reports') }}" class="btn btn-warning d-flex align-items-center p-3">
+                        <i class="bi bi-graph-up fs-5 me-3"></i>
+                        <span>Sales Reports</span>
+                    </a>
+                    {% endif %}
+
+                    {% if current_user.role == 'admin' %}
+                    <hr class="my-2">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-secondary d-flex align-items-center p-3">
+                        <i class="bi bi-person-plus fs-5 me-3"></i>
+                        <span>Add User</span>
+                    </a>
+
+                    <a href="{{ url_for('auth.manage_users') }}" class="btn btn-outline-secondary d-flex align-items-center p-3">
+                        <i class="bi bi-people fs-5 me-3"></i>
+                        <span>Manage Users</span>
+                    </a>
+                    <a href="{{ url_for('pos.profits_dashboard') }}" class="btn btn-success d-flex align-items-center p-3">
+                        <i class="bi bi-graph-up fs-5 me-3"></i>
+                        <span>Profits Dashboard</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+<!--STATISTIC CARDS-->
+    <div class="col-lg-9">
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card text-white bg-primary">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Total Products</h6>
+                                <h3 class="mb-0">{{ total_products }}</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-box-seam fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card text-white bg-warning">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Low Stock</h6>
+                                <h3 class="mb-0">{{ low_stock_products }}</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-exclamation-triangle fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card text-white bg-success">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Today's Sales</h6>
+                                <h3 class="mb-0">{{ total_sales_today }}</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-cart-check fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# CORRECTION: Changed from ['manager', 'admin'] to 'admin' for consistency with sidebar user management links #}
+            {% if current_user.role == 'admin' %}
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card text-white bg-info">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Total Users</h6>
+                                <h3 class="mb-0">{{ total_users }}</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-people fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Stock Value Summary Row -->
+{% if current_user.role in ['manager', 'admin'] %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h4 class="text-primary mb-3">
+            <i class="bi bi-graph-up"></i> Stock Valuation Overview
+        </h4>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Stock Cost Value</h6>
+                        <h4 class="mb-0">{{ format_currency(stock_values.total_cost_value) }}</h4>
+                        <small>Total Investment</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-boxes fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Stock Retail Value</h6>
+                        <h4 class="mb-0">{{ format_currency(stock_values.total_retail_value) }}</h4>
+                        <small>If All Sold</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-currency-dollar fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Potential Profit</h6>
+                        <h4 class="mb-0">{{ format_currency(stock_values.total_potential_profit) }}</h4>
+                        <small>
+                            {% if stock_values.total_cost_value > 0 %}
+                                {{ "%.1f"|format((stock_values.total_potential_profit / stock_values.total_cost_value) * 100) }}% margin
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-graph-up-arrow fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-white bg-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Units</h6>
+                        <h4 class="mb-0">{{ stock_stats.total_quantity }}</h4>
+                        <small>{{ stock_stats.in_stock_count }} products stocked</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-stack fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+<!-- Stock Performance Chart -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Stock Value by Category</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="stockValueChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Stock Health</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>In Stock</span>
+                        <span class="badge bg-success">{{ stock_stats.in_stock_count }}</span>
+                    </div>
+                    <div class="progress mt-1">
+                        <div class="progress-bar bg-success" 
+                             style="width: {{ (stock_stats.in_stock_count / stock_stats.total_products * 100) if stock_stats.total_products > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Low Stock</span>
+                        <span class="badge bg-warning">{{ stock_stats.low_stock_count }}</span>
+                    </div>
+                    <div class="progress mt-1">
+                        <div class="progress-bar bg-warning" 
+                             style="width: {{ (stock_stats.low_stock_count / stock_stats.total_products * 100) if stock_stats.total_products > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Out of Stock</span>
+                        <span class="badge bg-danger">{{ stock_stats.out_of_stock_count }}</span>
+                    </div>
+                    <div class="progress mt-1">
+                        <div class="progress-bar bg-danger" 
+                             style="width: {{ (stock_stats.out_of_stock_count / stock_stats.total_products * 100) if stock_stats.total_products > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+                
+                <hr>
+                <div class="text-center">
+                    <h4>{{ stock_stats.total_products }}</h4>
+                    <small class="text-muted">Total Products</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!--RECENT SALES-->
+        {# CORRECTION: Added a new row for Recent Sales and Low Stock Alert with proper column structure #}
+        <div class="row">
+            <div class="col-lg-8 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recent Sales</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if recent_sales and recent_sales.items %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Invoice Number</th>
+                                        <th>Date</th>
+                                        <th>Clerk</th>
+                                        <th>Status</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for sale in recent_sales.items %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('pos.receipt', sale_id=sale.id) }}" class="text-decoration-none">
+                                                {{ sale.invoice_number }}
+                                            </a>
+                                        </td>
+                                        <td>{{ sale.created_at.strftime('%m/%d %H:%M') }}</td>
+                                        <td>
+                                            {% if sale.clerk %}
+                                                {{ sale.clerk.username }}
+                                            {% else %}
+                                                <span class="text-muted">Unknown</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if sale.status == 'completed' else 'warning' if sale.status == 'pending' else 'secondary' }}">
+                                                {{ sale.status.title() }}
+                                            </span>
+                                        </td>
+                                        <td>GHS {{ "%.2f"|format(sale.total_amount) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {% if recent_sales.pages > 1 %}
+                        <nav aria-label="Sales pagination" class="p-3 pt-0">
+                            <ul class="pagination pagination-sm justify-content-center mb-0">
+                                {% if recent_sales.has_prev %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('main.index', page=recent_sales.prev_num) }}">
+                                            <i class="bi bi-chevron-left"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+
+                                {% for page_num in recent_sales.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                    {% if page_num %}
+                                        {% if page_num != recent_sales.page %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('main.index', page=page_num) }}">{{ page_num }}</a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                        {% endif %}
+                                    {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if recent_sales.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('main.index', page=recent_sales.next_num) }}">
+                                            <i class="bi bi-chevron-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                        {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-cart-x fs-1 text-muted"></i>
+                            <p class="text-muted mt-2 mb-0">No sales recorded yet.</p>
+                            <a href="{{ url_for('pos.pos_page') }}" class="btn btn-primary mt-2">
+                                <i class="bi bi-plus-circle"></i> Create First Sale
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Low Stock Alert</h5>
+                        {% if current_user.role in ['manager', 'admin'] %}
+                            <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-box-seam"></i> Manage
+                            </a>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        {% if low_stock_list %}
+                            {% for product in low_stock_list %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong>{{ product.name }}</strong><br>
+                                        <small class="text-muted">{{ product.sku }}</small>
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-{{ 'danger' if product.quantity == 0 else 'warning' }}">
+                                            {{ product.quantity }} left
+                                        </span>
+                                    </div>
+                                </div>
+                                {% if not loop.last %}<hr class="my-2">{% endif %}
+                            {% endfor %}
+
+                            {% if low_stock_products > 10 %}
+                                <hr>
+                                <div class="text-center">
+                                    {# IMPROVEMENT: Clarified the message #}
+                                    <small class="text-muted">
+                                        Displaying the first 10 of {{ low_stock_products }} low stock items
+                                    </small>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="text-center py-3">
+                                <i class="bi bi-check-circle fs-1 text-success"></i>
+                                <p class="text-muted mt-2 mb-0">All products are well stocked! 🎉</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+{% endblock %}

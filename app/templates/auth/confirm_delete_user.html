@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Confirm Delete User - {{ user.username }} - POS System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Confirm User Deletion
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> This action cannot be undone!
+                </div>
+                
+                <h5>User Details:</h5>
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <p><strong>Username:</strong> {{ user.username }}</p>
+                        <p><strong>Role:</strong> 
+                            <span class="badge bg-{{ 'danger' if user.role == 'admin' else 'warning' if user.role == 'manager' else 'secondary' }}">
+                                {{ user.role.title() }}
+                            </span>
+                        </p>
+                        <p><strong>Sales Count:</strong> {{ sales_count }}</p>
+                    </div>
+                </div>
+
+                {% if sales_count > 0 %}
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-circle"></i>
+                    This user has {{ sales_count }} associated sales records.
+                </div>
+                {% endif %}
+
+                {% if user.role == 'admin' %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-shield-exclamation"></i>
+                    You are about to delete an administrator account.
+                </div>
+                {% endif %}
+                
+                <div class="d-flex gap-2 mt-4">
+                    <form method="POST" action="{{ url_for('auth.delete_user', user_id=user.id) }}" 
+                          onsubmit="return confirm('Are you absolutely sure you want to delete {{ user.username }}?')">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Delete User
+                        </button>
+                    </form>
+                    <a href="{{ url_for('auth.manage_users') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

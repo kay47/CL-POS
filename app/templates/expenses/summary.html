@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}Expense Summary - POS System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h1 class="h2">Expense Summary & Analytics</h1>
+        <p class="text-muted">Analyze your business expenses and spending patterns</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <a href="{{ url_for('expenses.list_expenses') }}" class="btn btn-secondary">
+            <i class="bi bi-list"></i> View All Expenses
+        </a>
+        <a href="{{ url_for('expenses.add_expense') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Add Expense
+        </a>
+    </div>
+</div>
+
+<!-- Date Range Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-4">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-funnel"></i> Update Report
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary Statistics -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-danger">
+            <div class="card-body text-center">
+                <h5 class="card-title">Total Expenses</h5>
+                <h2 class="mb-0">GHS {{ "%.2f"|format(total_expenses) }}</h2>
+                <small>{{ start_date }} to {{ end_date }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-warning">
+            <div class="card-body text-center">
+                <h5 class="card-title">Categories</h5>
+                <h2 class="mb-0">{{ category_data|length if category_data else 0 }}</h2>
+                <small>expense categories used</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-info">
+            <div class="card-body text-center">
+                <h5 class="card-title">Daily Average</h5>
+                <h2 class="mb-0">GHS {{ "%.2f"|format(daily_average if daily_average else 0) }}</h2>
+                <small>per day in period ({{ days_in_period if days_in_period else 0 }} days)</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Category Breakdown -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart"></i> Expenses by Category
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if category_data %}
+                <canvas id="categoryChart" width="400" height="400"></canvas>
+                
+                <!-- Category Table -->
+                <div class="table-responsive mt-3">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="text-end">Amount</th>
+                                <th class="text-end">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in category_data %}
+                            <tr>
+                                <td>{{ item.category_name }}</td>
+                                <td class="text-end">GHS {{ "%.2f"|format(item.total_amount) }}</td>
+                                <td class="text-end">{{ "%.1f"|format((item.total_amount / total_expenses * 100) if total_expenses > 0 else 0) }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-pie-chart fs-1 text-muted"></i>
+                    <p class="text-muted mt-2">No expense data for selected period</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Expenses Chart -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up"></i> Daily Expense Trend
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if daily_data %}
+                <canvas id="dailyChart" width="400" height="400"></canvas>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-graph-up fs-1 text-muted"></i>
+                    <p class="text-muted mt-2">No daily expense data available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Expenses -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-bar-chart"></i> Category Details
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if category_data %}
+                <div class="row">
+                    {% for item in category_data %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-left-primary h-100">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                            {{ item.category_name }}
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                            GHS {{ "%.2f"|format(item.total_amount) }}
+                                        </div>
+                                        <div class="text-muted small">
+                                            {{ item.count }} transaction{{ 's' if item.count != 1 else '' }}
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <div class="progress" style="height: 10px; width: 60px;">
+                                            <div class="progress-bar" role="progressbar" 
+                                                 style="width: {{ (item.total_amount / category_data[0].total_amount * 100) if category_data and category_data[0].total_amount > 0 else 0 }}%">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if loop.index % 3 == 0 and not loop.last %}
+                </div>
+                <div class="row">
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-receipt fs-1 text-muted"></i>
+                    <h5 class="mt-3 text-muted">No Expense Data</h5>
+                    <p class="text-muted">No expenses found for the selected date range.</p>
+                    <a href="{{ url_for('expenses.add_expense') }}" class="btn btn-success">
+                        <i class="bi bi-plus-circle"></i> Add Your First Expense
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default dates if empty
+    const today = new Date().toISOString().split('T')[0];
+    const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+    
+    if (!startDateInput.value) {
+        startDateInput.value = firstDayOfMonth;
+    }
+    
+    if (!endDateInput.value) {
+        endDateInput.value = today;
+    }
+
+    // Category Chart
+    {% if category_data %}
+    const categoryData = {{ category_data | tojson }};
+    const categoryCtx = document.getElementById('categoryChart');
+    
+    if (categoryCtx && categoryData.length > 0) {
+        new Chart(categoryCtx, {
+            type: 'doughnut',
+            data: {
+                labels: categoryData.map(item => item.category_name),
+                datasets: [{
+                    data: categoryData.map(item => item.total_amount),
+                    backgroundColor: [
+                        '#FF6384',
+                        '#36A2EB',
+                        '#FFCE56',
+                        '#4BC0C0',
+                        '#9966FF',
+                        '#FF9F40',
+                        '#FF6384',
+                        '#C9CBCF',
+                        '#4BC0C0',
+                        '#FF6384'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = categoryData.reduce((sum, item) => sum + item.total_amount, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                return context.label + ': GHS ' + context.parsed.toFixed(2) + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    // Daily Chart
+    {% if daily_data %}
+    const dailyData = {{ daily_data | tojson }};
+    const dailyCtx = document.getElementById('dailyChart');
+    
+    if (dailyCtx && dailyData.length > 0) {
+        new Chart(dailyCtx, {
+            type: 'line',
+            data: {
+                labels: dailyData.map(item => item.date),
+                datasets: [{
+                    label: 'Daily Expenses',
+                    data: dailyData.map(item => item.total_amount),
+                    borderColor: '#FF6384',
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'GHS ' + value.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    // Date validation
+    startDateInput.addEventListener('change', function() {
+        if (endDateInput.value && startDateInput.value > endDateInput.value) {
+            endDateInput.value = startDateInput.value;
+        }
+    });
+    
+    endDateInput.addEventListener('change', function() {
+        if (startDateInput.value && endDateInput.value < startDateInput.value) {
+            startDateInput.value = endDateInput.value;
+        }
+    });
+});
+</script>
+{% endblock %}

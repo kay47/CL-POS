@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}Sales List - MY LORD ENTERPRISE POS SYSTEM{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-receipt-cutoff"></i> Sales List</h2>
+            <div class="d-flex gap-2">
+                <!-- Export Options -->
+                <div class="dropdown">
+                    <button class="btn btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="printSalesList()">
+                                <i class="bi bi-printer"></i> Print List
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('pos.export_sales_excel', status=status_filter) }}">
+                                <i class="bi bi-file-earmark-excel"></i> Export to Excel
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="exportCurrentPage()">
+                                <i class="bi bi-file-earmark-pdf"></i> Export Current Page
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Status Filter -->
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-funnel"></i> 
+                        Status: {{ status_filter.title() if status_filter != 'all' else 'All' }}
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item {{ 'active' if status_filter == 'all' else '' }}" 
+                               href="{{ url_for('pos.list_sales', status='all') }}">All Sales</a></li>
+                        <li><a class="dropdown-item {{ 'active' if status_filter == 'completed' else '' }}" 
+                               href="{{ url_for('pos.list_sales', status='completed') }}">Completed</a></li>
+                        <li><a class="dropdown-item {{ 'active' if status_filter == 'pending' else '' }}" 
+                               href="{{ url_for('pos.list_sales', status='pending') }}">Pending</a></li>
+                        <li><a class="dropdown-item {{ 'active' if status_filter == 'cancelled' else '' }}" 
+                               href="{{ url_for('pos.list_sales', status='cancelled') }}">Cancelled</a></li>
+                    </ul>
+                </div>
+                
+                <a href="{{ url_for('pos.pos_page') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> New Sale
+                </a>
+            </div>
+        </div>
+
+        {% if sales.items %}
+        <div class="card" id="salesTableCard">
+            <div class="card-header bg-light d-print-block">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Sales Report - {{ status_filter.title() if status_filter != 'all' else 'All Sales' }}</h5>
+                    <small class="text-muted d-print-block">
+                        Generated: {{ current_time.strftime('%Y-%m-%d %H:%M:%S %p') if current_time else '' }}
+                        | Total Records: {{ sales.total }}
+                    </small>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="salesTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Invoice ID</th>
+                                <th>Items</th>
+                                <th>Total Amount</th>
+                                <th>Amount Paid</th>
+                                <th>Payment Method</th>
+                                <th>Status</th>
+                                <th>Clerk</th>
+                                <th class="d-print-none">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in sales.items %}
+                            <tr>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ sale.created_at.strftime('%Y-%m-%d') }}<br>
+                                        {{ sale.created_at.strftime('%H:%M:%S %p') }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <strong>{{ sale.invoice_number }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ sale.sale_items|length }} items</span>
+                                </td>
+                                <td>
+                                    <strong class="text-success">GHS {{ "%.2f"|format(sale.total_amount) }}</strong>
+                                </td>
+                                <td>
+                                    <span class="text-primary">GHS {{ "%.2f"|format(sale.amount_paid) }}</span>
+                                    {% if sale.change_given > 0 %}
+                                        <br><small class="text-info">Change: GHS {{ "%.2f"|format(sale.change_given) }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if sale.payment_method == 'cash' %}
+                                        <i class="bi bi-cash-stack text-success"></i> Cash
+                                    {% elif sale.payment_method == 'card' %}
+                                        <i class="bi bi-credit-card text-primary"></i> Card
+                                    {% elif sale.payment_method == 'mobile_money' %}
+                                        <i class="bi bi-phone text-warning"></i> Mobile Money
+                                    {% elif sale.payment_method == 'bank_transfer' %}
+                                        <i class="bi bi-bank text-info"></i> Bank Transfer
+                                    {% else %}
+                                        <i class="bi bi-question-circle"></i> {{ sale.payment_method.title() }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if sale.status == 'completed' %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Completed
+                                        </span>
+                                    {% elif sale.status == 'pending' %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-clock"></i> Pending
+                                        </span>
+                                    {% elif sale.status == 'cancelled' %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-x-circle"></i> Cancelled
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <i class="bi bi-person"></i> {{ sale.clerk.username }}
+                                </td>
+                                <td class="d-print-none">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <!-- Continue Shopping for Pending Sales -->
+                                        {% if sale.status == 'pending' %}
+                                        <a href="{{ url_for('pos.continue_sale', sale_id=sale.id) }}" 
+                                           class="btn btn-outline-success" title="Continue Shopping">
+                                            <i class="bi bi-cart-plus"></i>
+                                        </a>
+                                        {% endif %}
+                                        
+                                        <!-- View Receipt -->
+                                        <a href="{{ url_for('pos.receipt', sale_id=sale.id) }}" 
+                                           class="btn btn-outline-primary" title="View Receipt">
+                                            <i class="bi bi-receipt"></i>
+                                        </a>
+                                        
+                                        <!-- Update Status -->
+                                        {% if sale.status != 'completed' %}
+                                        <a href="{{ url_for('pos.update_sale_status', sale_id=sale.id) }}" 
+                                           class="btn btn-outline-warning" title="Update Status">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        {% endif %}
+                                        
+                                        <!-- Sale Details Button -->
+                                        <button type="button" class="btn btn-outline-info" 
+                                                data-bs-toggle="modal" data-bs-target="#saleModal{{ sale.id }}"
+                                                title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light d-print-table-footer-group">
+                            <tr>
+                                <th colspan="3">Totals ({{ sales.total }} records)</th>
+                                <th class="text-success">
+                                    GHS {{ "%.2f"|format(sales.items|sum(attribute='total_amount')) }}
+                                </th>
+                                <th class="text-primary">
+                                    GHS {{ "%.2f"|format(sales.items|sum(attribute='amount_paid')) }}
+                                </th>
+                                <th colspan="4"></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if sales.pages > 1 %}
+        <nav aria-label="Sales pagination" class="mt-4 d-print-none">
+            <ul class="pagination justify-content-center">
+                {% if sales.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('pos.list_sales', page=sales.prev_num, status=status_filter) }}">
+                            <i class="bi bi-chevron-left"></i> Previous
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for page_num in sales.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != sales.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('pos.list_sales', page=page_num, status=status_filter) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if sales.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('pos.list_sales', page=sales.next_num, status=status_filter) }}">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-receipt-cutoff" style="font-size: 4rem; color: #6c757d;"></i>
+            <h4 class="mt-3 text-muted">No Sales Found</h4>
+            <p class="text-muted">
+                {% if status_filter != 'all' %}
+                    No {{ status_filter }} sales found.
+                {% else %}
+                    No sales have been recorded yet.
+                {% endif %}
+            </p>
+            <a href="{{ url_for('pos.pos_page') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Create First Sale
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Sale Details Modals -->
+{% for sale in sales.items %}
+<div class="modal fade" id="saleModal{{ sale.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-receipt"></i> Sale {{ sale.invoice_number }} Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Date:</strong> {{ sale.created_at.strftime('%Y-%m-%d %H:%M:%S') }}<br>
+                        <strong>Clerk:</strong> {{ sale.clerk.username }}<br>
+                        <strong>Status:</strong> 
+                        {% if sale.status == 'completed' %}
+                            <span class="badge bg-success">Completed</span>
+                        {% elif sale.status == 'pending' %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        {% elif sale.status == 'cancelled' %}
+                            <span class="badge bg-danger">Cancelled</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <strong>Total: <span class="text-success">GHS {{ "%.2f"|format(sale.total_amount) }}</span></strong><br>
+                        <strong>Paid: <span class="text-primary">GHS {{ "%.2f"|format(sale.amount_paid) }}</span></strong><br>
+                        {% if sale.change_given > 0 %}
+                        <strong>Change: <span class="text-info">GHS {{ "%.2f"|format(sale.change_given) }}</span></strong><br>
+                        {% endif %}
+                        <strong>Method: {{ sale.payment_method.title() }}</strong>
+                    </div>
+                </div>
+                
+                <h6>Items Sold:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Unit</th>
+                                <th>SKU</th>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in sale.sale_items %}
+                            <tr>
+                                <td>{{ item.product.name }}</td>
+                                <td><span class="badge bg-info">{{ item.unit_display }}</span></td>
+                                <td><code>{{ item.product.sku }}</code></td>
+                                <td>GHS {{ "%.2f"|format(item.price_at_sale) }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>GHS {{ "%.2f"|format(item.line_total) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                {% if sale.status == 'pending' %}
+                <a href="{{ url_for('pos.continue_sale', sale_id=sale.id) }}" class="btn btn-success">
+                    <i class="bi bi-cart-plus"></i> Continue Shopping
+                </a>
+                {% endif %}
+                <a href="{{ url_for('pos.receipt', sale_id=sale.id) }}" class="btn btn-primary">
+                    <i class="bi bi-printer"></i> View Receipt
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 mb-0">Generating export...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Print functionality
+function printSalesList() {
+    // Hide non-printable elements
+    const nonPrintElements = document.querySelectorAll('.d-print-none');
+    nonPrintElements.forEach(el => el.style.display = 'none');
+    
+    // Add print-specific styling
+    const printStyles = document.createElement('style');
+    printStyles.innerHTML = `
+        @media print {
+            .navbar, .card-header .d-flex > div:last-child, .pagination { display: none !important; }
+            .card { border: none; box-shadow: none; }
+            .table { font-size: 12px; }
+            .badge { font-size: 10px; padding: 2px 4px; }
+            body { font-size: 12px; }
+            .card-header h5 { font-size: 16px; margin-bottom: 10px; }
+            .table th, .table td { padding: 4px 8px; }
+        }
+    `;
+    document.head.appendChild(printStyles);
+    
+    // Print
+    window.print();
+    
+    // Restore elements after print
+    setTimeout(() => {
+        nonPrintElements.forEach(el => el.style.display = '');
+        document.head.removeChild(printStyles);
+    }, 1000);
+}
+
+// Export current page as Excel (using client-side export)
+function exportCurrentPage() {
+    showLoadingModal();
+    
+    setTimeout(() => {
+        const table = document.getElementById('salesTable');
+        const wb = XLSX.utils.table_to_book(table, {sheet: "Sales Report"});
+        const filename = `sales_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(wb, filename);
+        hideLoadingModal();
+    }, 500);
+}
+
+function showLoadingModal() {
+    const modal = new bootstrap.Modal(document.getElementById('loadingModal'));
+    modal.show();
+}
+
+function hideLoadingModal() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+    if (modal) modal.hide();
+}
+
+// Add SheetJS library for Excel export
+if (!window.XLSX) {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    document.head.appendChild(script);
+}
+
+// Enhance table with sorting (optional)
+document.addEventListener('DOMContentLoaded', function() {
+    // Add tooltips to action buttons
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Highlight pending sales
+    document.querySelectorAll('tr').forEach(row => {
+        const statusBadge = row.querySelector('.badge.bg-warning');
+        if (statusBadge && statusBadge.textContent.includes('Pending')) {
+            row.style.backgroundColor = '#fff3cd';
+        }
+    });
+});
+</script>
+
+<style>
+@media print {
+    .d-print-none { display: none !important; }
+    .d-print-block { display: block !important; }
+    .d-print-table-footer-group { display: table-footer-group !important; }
+    
+    body {
+        font-size: 12px;
+        color: #000;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: none;
+        page-break-inside: avoid;
+    }
+    
+    .table {
+        font-size: 11px;
+        border-collapse: collapse;
+    }
+    
+    .table th,
+    .table td {
+        border: 1px solid #ddd;
+        padding: 4px 6px;
+    }
+    
+    .badge {
+        font-size: 9px;
+        padding: 2px 4px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
+    
+    .text-success { color: #28a745 !important; }
+    .text-primary { color: #007bff !important; }
+    .text-info { color: #17a2b8 !important; }
+    .text-warning { color: #ffc107 !important; }
+    .text-danger { color: #dc3545 !important; }
+    
+    /* Force background colors for badges in print */
+    .bg-success { background-color: #28a745 !important; color: white !important; }
+    .bg-warning { background-color: #ffc107 !important; color: black !important; }
+    .bg-danger { background-color: #dc3545 !important; color: white !important; }
+    .bg-info { background-color: #17a2b8 !important; color: white !important; }
+}
+
+/* Highlight pending sales */
+.table tbody tr:has(.badge.bg-warning:contains("Pending")) {
+    background-color: rgba(255, 243, 205, 0.3);
+}
+
+/* Action buttons styling */
+.btn-group-sm > .btn {
+    padding: 0.25rem 0.4rem;
+}
+
+/* Better mobile responsive */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group-sm > .btn {
+        padding: 0.2rem 0.3rem;
+        font-size: 0.75rem;
+    }
+}
+</style>
+{% endblock %}

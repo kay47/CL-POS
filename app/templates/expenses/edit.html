@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - POS System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="bi bi-receipt"></i> {{ title }}
+                </h4>
+                <a href="{{ url_for('expenses.list_expenses') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Back to Expenses
+                </a>
+            </div>
+            <div class="card-body">
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.category.label(class="form-label") }}
+                                {{ form.category(class="form-select" + (" is-invalid" if form.category.errors else "")) }}
+                                {% for error in form.category.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.date.label(class="form-label") }}
+                                {{ form.date(class="form-control" + (" is-invalid" if form.date.errors else "")) }}
+                                {% for error in form.date.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), placeholder="Brief description of the expense...") }}
+                        {% for error in form.description.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">Be specific about what this expense is for</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.amount.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">GHS</span>
+                                    {{ form.amount(class="form-control" + (" is-invalid" if form.amount.errors else ""), step="0.01", min="0") }}
+                                    {% for error in form.amount.errors %}
+                                        <div class="invalid-feedback">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.receipt_number.label(class="form-label") }}
+                                {{ form.receipt_number(class="form-control" + (" is-invalid" if form.receipt_number.errors else ""), placeholder="Optional receipt/invoice number") }}
+                                {% for error in form.receipt_number.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                                <div class="form-text">Reference number for tracking</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        {{ form.notes.label(class="form-label") }}
+                        {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else ""), rows="3", placeholder="Additional notes or details...") }}
+                        {% for error in form.notes.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">Optional additional information</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            {% if expense %}
+                            <a href="{{ url_for('expenses.confirm_delete_expense', expense_id=expense.id) }}" class="btn btn-danger">
+                                <i class="bi bi-trash"></i> Delete Expense
+                            </a>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <a href="{{ url_for('expenses.list_expenses') }}" class="btn btn-secondary me-2">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            {{ form.submit(class="btn btn-success") }}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Preview Card (for editing) -->
+        {% if expense %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Expense Details</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Created:</strong> {{ expense.created_at.strftime('%Y-%m-%d at %H:%M') }}</p>
+                        <p><strong>Added by:</strong> {{ expense.user.username }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        {% if expense.updated_at != expense.created_at %}
+                        <p><strong>Last Updated:</strong> {{ expense.updated_at.strftime('%Y-%m-%d at %H:%M') }}</p>
+                        {% endif %}
+                        <p><strong>ID:</strong> #{{ expense.id }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus on description field
+    document.getElementById('description').focus();
+    
+    // Format amount input
+    const amountInput = document.getElementById('amount');
+    amountInput.addEventListener('input', function() {
+        let value = this.value.replace(/[^0-9.]/g, '');
+        let parts = value.split('.');
+        if (parts.length > 2) {
+            value = parts[0] + '.' + parts.slice(1).join('');
+        }
+        if (parts[1] && parts[1].length > 2) {
+            value = parts[0] + '.' + parts[1].substring(0, 2);
+        }
+        this.value = value;
+    });
+    
+    // Prevent form submission on enter in amount field
+    amountInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('receipt_number').focus();
+        }
+    });
+    
+    // Set today's date as default if no date is set
+    const dateInput = document.getElementById('date');
+    if (!dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+});
+</script>
+{% endblock %}

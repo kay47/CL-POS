@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User - {{ user.username }} - POS System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-gear"></i> Edit User - {{ user.username }}
+                </h5>
+                <a href="{{ url_for('auth.manage_users') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Back to Users
+                </a>
+            </div>
+            <div class="card-body">
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Current User Info -->
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Editing:</strong> {{ user.username }} 
+                        <span class="badge bg-{{ 'danger' if user.role == 'admin' else 'warning' if user.role == 'manager' else 'secondary' }}">
+                            {{ user.role.title() }}
+                        </span>
+                        {% if user.id == current_user.id %}
+                        <span class="badge bg-info">Your Account</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Username Field -->
+                    <div class="mb-3">
+                        {{ form.username.label(class="form-label") }}
+                        {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
+                        {% if form.username.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.username.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Role Field -->
+                    <div class="mb-3">
+                        {{ form.role.label(class="form-label") }}
+                        {{ form.role(class="form-select" + (" is-invalid" if form.role.errors else "")) }}
+                        {% if form.role.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.role.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if user.id == current_user.id and user.role == 'admin' %}
+                        <div class="form-text text-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            You cannot change your own admin role to prevent system lockout.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <hr>
+
+                    <!-- Password Section -->
+                    <h6 class="text-muted">Change Password (Optional)</h6>
+                    
+                    <div class="mb-3">
+                        {{ form.password.label(class="form-label") }}
+                        {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
+                        {% if form.password.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.password.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            Leave blank to keep the current password
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.password_confirm.label(class="form-label") }}
+                        {{ form.password_confirm(class="form-control" + (" is-invalid" if form.password_confirm.errors else "")) }}
+                        {% if form.password_confirm.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.password_confirm.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Active Status (if field exists) -->
+                    {% if form.is_active %}
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.is_active(class="form-check-input") }}
+                            {{ form.is_active.label(class="form-check-label") }}
+                        </div>
+                        <div class="form-text">
+                            Inactive users cannot log in to the system
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('auth.manage_users') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Additional User Info -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">User Statistics</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-6">
+                        <div class="border-end">
+                            <h4 class="text-primary">{{ user.sales|length if user.sales else 0 }}</h4>
+                            <small class="text-muted">Total Sales</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h4 class="text-success">
+                            {% if user.sales %}
+                                ${{ "%.2f"|format(user.sales|sum(attribute='total_amount')) }}
+                            {% else %}
+                                $0.00
+                            {% endif %}
+                        </h4>
+                        <small class="text-muted">Total Revenue</small>
+                    </div>
+                </div>
+                
+                {% if user.created_at %}
+                <hr>
+                <div class="text-center">
+                    <small class="text-muted">
+                        Member since {{ user.created_at.strftime('%B %d, %Y') }}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show/hide password confirmation based on password input
+    const passwordField = document.getElementById('password');
+    const passwordConfirmField = document.getElementById('password_confirm');
+    const confirmDiv = passwordConfirmField.closest('.mb-3');
+    
+    // Initially hide confirm password if password is empty
+    if (!passwordField.value) {
+        confirmDiv.style.display = 'none';
+    }
+    
+    passwordField.addEventListener('input', function() {
+        if (this.value) {
+            confirmDiv.style.display = 'block';
+            passwordConfirmField.required = true;
+        } else {
+            confirmDiv.style.display = 'none';
+            passwordConfirmField.required = false;
+            passwordConfirmField.value = '';
+        }
+    });
+});
+</script>
+{% endblock %}

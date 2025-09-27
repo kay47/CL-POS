@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Add Products - POS System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h4 class="card-title mb-0">
+                    <i class="bi bi-upload"></i> Bulk Add Products
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-info-circle"></i> How to Bulk Add Products:</h6>
+                    <ol class="mb-0">
+                        <li>Download the CSV template below</li>
+                        <li>Fill in your product data using the template format</li>
+                        <li>Upload your completed CSV file</li>
+                        <li>Review the results and fix any errors if needed</li>
+                    </ol>
+                </div>
+
+                <!-- Template Download Section -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-download"></i> Step 1: Download Template
+                        </h5>
+                        <p class="text-muted">
+                            Download the CSV template with the correct column headers and sample data.
+                        </p>
+                        <a href="{{ url_for('products.download_csv_template') }}" 
+                           class="btn btn-outline-primary">
+                            <i class="bi bi-file-earmark-spreadsheet"></i> Download CSV Template
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Upload Section -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-upload"></i> Step 2: Upload Your CSV File
+                        </h5>
+                        <form method="POST" enctype="multipart/form-data" id="bulk-upload-form">
+                            <div class="mb-3">
+                                <label for="csv_file" class="form-label">Select CSV File</label>
+                                <input type="file" 
+                                       class="form-control" 
+                                       id="csv_file" 
+                                       name="csv_file" 
+                                       accept=".csv" 
+                                       required>
+                                <div class="form-text">
+                                    Only CSV files are accepted. Maximum file size: 5MB
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-upload"></i> Upload Products
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- CSV Format Information -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-table"></i> CSV Format Requirements
+                        </h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Column</th>
+                                        <th>Required</th>
+                                        <th>Format</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>sku</code></td>
+                                        <td><span class="badge bg-danger">Required</span></td>
+                                        <td>Text</td>
+                                        <td>Unique product SKU/code</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>name</code></td>
+                                        <td><span class="badge bg-danger">Required</span></td>
+                                        <td>Text</td>
+                                        <td>Product name</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>description</code></td>
+                                        <td><span class="badge bg-secondary">Optional</span></td>
+                                        <td>Text</td>
+                                        <td>Product description</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>purchase_price</code></td>
+                                        <td><span class="badge bg-danger">Required</span></td>
+                                        <td>Number</td>
+                                        <td>Cost price (e.g., 10.50)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>full_price</code></td>
+                                        <td><span class="badge bg-danger">Required</span></td>
+                                        <td>Number</td>
+                                        <td>Full pack selling price (e.g., 15.75)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>quantity</code></td>
+                                        <td><span class="badge bg-secondary">Optional</span></td>
+                                        <td>Integer</td>
+                                        <td>Initial stock quantity (defaults to 0)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="alert alert-warning mt-3">
+                            <h6><i class="bi bi-exclamation-triangle"></i> Important Notes:</h6>
+                            <ul class="mb-0">
+                                <li>Each SKU must be unique - duplicate SKUs will be skipped</li>
+                                <li>Full price must be greater than purchase price</li>
+                                <li>Half and quarter pack prices are calculated automatically</li>
+                                <li>Numbers should use decimal point (.) not comma</li>
+                                <li>The first row must contain column headers exactly as shown above</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sample Data Preview -->
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-eye"></i> Sample Data Format
+                        </h5>
+                        <p class="text-muted">This is how your CSV should look:</p>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>sku</th>
+                                        <th>name</th>
+                                        <th>description</th>
+                                        <th>purchase_price</th>
+                                        <th>full_price</th>
+                                        <th>quantity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>RICE001</td>
+                                        <td>Premium Rice 5kg</td>
+                                        <td>High quality jasmine rice</td>
+                                        <td>25.00</td>
+                                        <td>35.00</td>
+                                        <td>50</td>
+                                    </tr>
+                                    <tr>
+                                        <td>SOAP001</td>
+                                        <td>Washing Soap Bar</td>
+                                        <td>Multi-purpose cleaning soap</td>
+                                        <td>2.50</td>
+                                        <td>4.00</td>
+                                        <td>100</td>
+                                    </tr>
+                                    <tr>
+                                        <td>OIL001</td>
+                                        <td>Cooking Oil 1L</td>
+                                        <td>Pure vegetable oil</td>
+                                        <td>8.00</td>
+                                        <td>12.00</td>
+                                        <td>25</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <hr class="my-4">
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('products.list_products') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Products
+                    </a>
+                    <div>
+                        <a href="{{ url_for('products.add_product') }}" class="btn btn-outline-primary">
+                            <i class="bi bi-plus-circle"></i> Add Single Product
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('csv_file');
+    const form = document.getElementById('bulk-upload-form');
+    
+    // File validation
+    fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            // Check file size (5MB limit)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File size too large. Please choose a file smaller than 5MB.');
+                this.value = '';
+                return;
+            }
+            
+            // Check file type
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                alert('Please select a CSV file.');
+                this.value = '';
+                return;
+            }
+        }
+    });
+    
+    // Form submission with loading indicator
+    form.addEventListener('submit', function(e) {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        // Show loading state
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+        submitBtn.disabled = true;
+        
+        // Reset button after some time (in case of navigation back)
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 10000);
+    });
+    
+    // Drag and drop functionality
+    const cardBody = document.querySelector('.card-body');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        cardBody.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        cardBody.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        cardBody.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight(e) {
+        cardBody.classList.add('border-primary', 'bg-light');
+    }
+    
+    function unhighlight(e) {
+        cardBody.classList.remove('border-primary', 'bg-light');
+    }
+    
+    cardBody.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+            fileInput.files = files;
+            
+            // Trigger change event for validation
+            const event = new Event('change', { bubbles: true });
+            fileInput.dispatchEvent(event);
+        }
+    }
+});
+</script>
+{% endblock %}

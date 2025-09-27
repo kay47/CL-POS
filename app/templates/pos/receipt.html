@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Receipt {{ sale.invoice_number }} - POS System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Receipt {{ sale.invoice_number }}</h5>
+                <button class="btn btn-primary btn-sm" onclick="window.print()">
+                    <i class="bi bi-printer"></i> Print
+                </button>
+            </div>
+            <div class="card-body" id="receipt">
+                <!-- Receipt Header -->
+                <div class="text-center mb-4">
+                    <h3><strong>MY LORD ENTERPRISE POS SYSTEM</strong></h3>
+                    <p class="mb-1">Point of Sale Receipt</p>
+                    <hr>
+                </div>
+                
+                <!-- Sale Information -->
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Invoice #:</strong> {{ sale.invoice_number }}
+                    </div>
+                    <div class="col-6 text-end">
+                        <strong>Date:</strong> {{ sale.created_at.strftime('%m/%d/%Y %I:%M %p') }}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Cashier:</strong> {{ sale.clerk.username }}
+                    </div>
+                    <div class="col-6 text-end">
+                        <strong>Items:</strong> {{ sale.sale_items|length }}
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-6">
+                        <strong>Payment Method:</strong> 
+                        {% if sale.payment_method == 'cash' %}
+                            Cash
+                        {% elif sale.payment_method == 'card' %}
+                            Credit/Debit Card
+                        {% elif sale.payment_method == 'mobile_money' %}
+                            Mobile Money
+                        {% elif sale.payment_method == 'bank_transfer' %}
+                            Bank Transfer
+                        {% else %}
+                            {{ sale.payment_method.title() }}
+                        {% endif %}
+                    </div>
+                    <div class="col-6 text-end">
+                        <strong>Status:</strong>
+                        <span class="badge bg-{% if sale.status == 'completed' %}success{% elif sale.status == 'pending' %}warning{% else %}secondary{% endif %}">
+                            {{ sale.status.title() }}
+                        </span>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Items -->
+                <div class="mb-4">
+                    {% for item in sale.sale_items %}
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <strong>{{ item.product.name }}</strong>
+                                        <span class="badge bg-info ms-2">{{ item.unit_display }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ item.product.sku }}</small>
+                                    </div>
+                                </div>
+                                <div class="row mt-1">
+                                    <div class="col-6">
+                                        <small>{{ item.quantity }} × {{ item.price_at_sale | format_currency }}</small>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <strong>{{ item.line_total | format_currency }}</strong>
+                                    </div>
+                                </div>
+                                {% if current_user.role in ['manager', 'admin'] %}
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-primary">Profit: {{ item.line_profit | format_currency }}</small>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <small class="text-muted">Margin: {{ "%.1f"|format((item.line_profit / item.line_total * 100) if item.line_total|float > 0 else 0) }}%</small>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if not loop.last %}<hr class="my-2">{% endif %}
+                    {% endfor %}
+                </div>
+                
+                <hr class="border-dark">
+                
+                <!-- Totals -->
+                <div class="row mb-2">
+                    <div class="col-8">
+                        <strong>SUBTOTAL:</strong>
+                    </div>
+                    <div class="col-4 text-end">
+                        <strong>{{ sale.total_amount | format_currency }}</strong>
+                    </div>
+                </div>
+
+                {% if current_user.role in ['manager', 'admin'] %}
+                <div class="row mb-2">
+                    <div class="col-8">
+                        <strong class="text-primary">TOTAL PROFIT:</strong>
+                    </div>
+                    <div class="col-4 text-end">
+                        <strong class="text-primary">{{ sale.total_profit | format_currency }}</strong>
+                    </div>
+                </div>
+                {% endif %}
+
+                <hr>
+
+                <!-- Payment Information -->
+                <div class="row mb-2">
+                    <div class="col-8">
+                        <strong>AMOUNT PAID:</strong>
+                    </div>
+                    <div class="col-4 text-end">
+                        <strong>{{ sale.amount_paid | format_currency }}</strong>
+                    </div>
+                </div>
+
+                {% if sale.change_given > 0 %}
+                <div class="row mb-4">
+                    <div class="col-8">
+                        <strong>CHANGE:</strong>
+                    </div>
+                    <div class="col-4 text-end">
+                        <strong class="text-info">{{ sale.change_given | format_currency }}</strong>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <hr>
+                
+                <!-- Footer -->
+                <div class="text-center text-muted">
+                    <p class="mb-1">Thank you for your business!</p>
+                    <p class="mb-0">Please keep this receipt for your records.</p>
+                    {% if sale.status == 'pending' %}
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <small><strong>Note:</strong> This is a pending sale. Items will be deducted from inventory when completed.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-footer text-center">
+                <a href="{{ url_for('pos.pos_page') }}" class="btn btn-success">
+                    <i class="bi bi-cart-plus"></i> New Sale
+                </a>
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-house"></i> Dashboard
+                </a>
+                {% if current_user.role in ['manager', 'admin'] %}
+                <a href="{{ url_for('pos.list_sales') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-list"></i> All Sales
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+@media print {
+    .navbar, .card-header, .card-footer, .btn {
+        display: none !important;
+    }
+    
+    .container-fluid {
+        margin: 0;
+        padding: 0;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: none;
+    }
+    
+    .card-body {
+        padding: 20px;
+    }
+    
+    body {
+        font-size: 12px;
+    }
+    
+    h3 {
+        font-size: 18px;
+    }
+    
+    h4, h5 {
+        font-size: 14px;
+    }
+    
+    .badge {
+        font-size: 8px;
+        padding: 2px 4px;
+    }
+    
+    .alert {
+        font-size: 10px;
+        padding: 5px;
+    }
+}
+</style>
+{% endblock %}

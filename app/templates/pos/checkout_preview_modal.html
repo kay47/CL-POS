@@ -1,0 +1,78 @@
+<!-- Checkout Preview Modal -->
+<div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="checkoutModalLabel">
+                    <i class="bi bi-cart-check"></i> Checkout Preview
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="checkout-items">
+                    <!-- Items will be loaded here via JavaScript -->
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="sale-status" class="form-label">Sale Status</label>
+                            <select class="form-select" id="sale-status">
+                                <option value="completed">Completed</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                            <div class="form-text">
+                                <strong>Completed:</strong> Items will be deducted from inventory immediately<br>
+                                <strong>Pending:</strong> Items remain in inventory until status is changed
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-end align-items-center h-100">
+                            <div class="text-end">
+                                <h4>Total: <span id="checkout-total" class="text-success">GHS 0.00</span></h4>
+                                <p class="text-muted mb-0">Items: <span id="checkout-item-count">0</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-arrow-left"></i> Back to Cart
+                </button>
+                <button type="button" class="btn btn-success" id="confirm-checkout">
+                    <i class="bi bi-check-circle"></i> Confirm Sale
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Checkout Items Template -->
+<script type="text/template" id="checkout-item-template">
+    <div class="checkout-item mb-3">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h6 class="mb-1">{{product_name}}</h6>
+                <small class="text-muted">SKU: {{sku}}</small>
+            </div>
+            <div class="col-md-2 text-center">
+                <span class="badge bg-primary">{{quantity}}</span>
+            </div>
+            <div class="col-md-2 text-center">
+                GHS {{price}}
+            </div>
+            <div class="col-md-2 text-end">
+                <strong>GHS {{line_total}}</strong>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <small class="text-info">Available stock: {{available_stock}}</small>
+            </div>
+        </div>
+    </div>
+</script>

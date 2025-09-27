@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - MY LORD ENTERPRISE POS SYSTEM{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="card-title mb-0">
+                    <i class="bi bi-box-seam"></i> {{ title }}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Basic Product Information -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.sku.id }}" class="form-label">
+                                    <strong>{{ form.sku.label.text }}</strong>
+                                </label>
+                                {{ form.sku(class="form-control") }}
+                                {% if form.sku.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.sku.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.name.id }}" class="form-label">
+                                    <strong>{{ form.name.label.text }}</strong>
+                                </label>
+                                {{ form.name(class="form-control") }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.name.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.description.id }}" class="form-label">
+                            {{ form.description.label.text }}
+                        </label>
+                        {{ form.description(class="form-control", rows="3") }}
+                        {% if form.description.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.description.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Pricing Section -->
+                    <hr>
+                    <h5 class="text-primary mb-3">
+                        <i class="bi bi-currency-dollar"></i> Pricing Information
+                    </h5>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.purchase_price.id }}" class="form-label">
+                                    <strong>{{ form.purchase_price.label.text }}</strong>
+                                    <small class="text-muted">(Cost per full pack)</small>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">GHS</span>
+                                    {{ form.purchase_price(class="form-control", step="0.01", id="purchasePrice") }}
+                                </div>
+                                {% if form.purchase_price.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.purchase_price.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.full_price.id }}" class="form-label">
+                                    <strong>{{ form.full_price.label.text }}</strong>
+                                    <span class="badge bg-success">Full Pack</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">GHS</span>
+                                    {{ form.full_price(class="form-control", step="0.01", id="fullPrice") }}
+                                </div>
+                                <div class="mt-1">
+                                    <small class="text-primary" id="fullProfit">Profit: GHS 0.00 (0%)</small>
+                                </div>
+                                {% if form.full_price.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.full_price.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.quantity.id }}" class="form-label">
+                                    <strong>{{ form.quantity.label.text }}</strong>
+                                </label>
+                                {{ form.quantity(class="form-control") }}
+                                {% if form.quantity.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.quantity.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calculated Pricing Display -->
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">
+                            <i class="bi bi-calculator"></i> Automatic Fractional Pricing
+                        </h6>
+                        <p class="mb-2">Half and quarter pack prices are calculated automatically:</p>
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <div class="border-end">
+                                    <strong class="text-success">Full Pack</strong><br>
+                                    <span id="fullPriceDisplay">GHS 0.00</span><br>
+                                    <small class="text-primary" id="fullProfitDisplay">Profit: GHS 0.00</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="border-end">
+                                    <strong class="text-warning">Half Pack (50%)</strong><br>
+                                    <span id="halfPriceDisplay">GHS 0.00</span><br>
+                                    <small class="text-primary" id="halfProfitDisplay">Profit: GHS 0.00</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <strong class="text-info">Quarter Pack (25%)</strong><br>
+                                <span id="quarterPriceDisplay">GHS 0.00</span><br>
+                                <small class="text-primary" id="quarterProfitDisplay">Profit: GHS 0.00</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('products.list_products') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Products
+                        </a>
+                        {{ form.submit(class="btn btn-success") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const purchasePriceInput = document.getElementById('purchasePrice');
+    const fullPriceInput = document.getElementById('fullPrice');
+
+    function calculatePricing() {
+        const purchasePrice = parseFloat(purchasePriceInput.value) || 0;
+        const fullPrice = parseFloat(fullPriceInput.value) || 0;
+
+        // Calculate fractional prices
+        const halfPrice = fullPrice * 0.5;
+        const quarterPrice = fullPrice * 0.25;
+
+        // Calculate profits (your new logic)
+        const fullProfit = fullPrice - purchasePrice;
+        const halfProfit = fullProfit * 0.5;  // 50% of full pack profit
+        const quarterProfit = fullProfit * 0.25;  // 25% of full pack profit
+
+        // Calculate profit percentages
+        const fullProfitPercent = purchasePrice > 0 ? (fullProfit / purchasePrice * 100) : 0;
+        const halfProfitPercent = (purchasePrice * 0.5) > 0 ? (halfProfit / (purchasePrice * 0.5) * 100) : 0;
+        const quarterProfitPercent = (purchasePrice * 0.25) > 0 ? (quarterProfit / (purchasePrice * 0.25) * 100) : 0;
+
+        // Update individual profit display
+        document.getElementById('fullProfit').textContent = 
+            `Profit: GHS ${fullProfit.toFixed(2)} (${fullProfitPercent.toFixed(1)}%)`;
+
+        // Update display panels
+        document.getElementById('fullPriceDisplay').textContent = `GHS ${fullPrice.toFixed(2)}`;
+        document.getElementById('halfPriceDisplay').textContent = `GHS ${halfPrice.toFixed(2)}`;
+        document.getElementById('quarterPriceDisplay').textContent = `GHS ${quarterPrice.toFixed(2)}`;
+
+        document.getElementById('fullProfitDisplay').textContent = `Profit: GHS ${fullProfit.toFixed(2)}`;
+        document.getElementById('halfProfitDisplay').textContent = `Profit: GHS ${halfProfit.toFixed(2)}`;
+        document.getElementById('quarterProfitDisplay').textContent = `Profit: GHS ${quarterProfit.toFixed(2)}`;
+
+        // Color code based on profitability
+        updateProfitColor('fullProfit', fullProfit);
+        updateProfitColor('fullProfitDisplay', fullProfit);
+        updateProfitColor('halfProfitDisplay', halfProfit);
+        updateProfitColor('quarterProfitDisplay', quarterProfit);
+    }
+
+    function updateProfitColor(elementId, profit) {
+        const element = document.getElementById(elementId);
+        if (profit > 0) {
+            element.className = element.className.replace(/text-\w+/, 'text-success');
+        } else if (profit < 0) {
+            element.className = element.className.replace(/text-\w+/, 'text-danger');
+        } else {
+            element.className = element.className.replace(/text-\w+/, 'text-muted');
+        }
+    }
+
+    // Auto-suggest full price based on purchase price
+    function suggestFullPrice() {
+        const purchasePrice = parseFloat(purchasePriceInput.value) || 0;
+        if (purchasePrice > 0 && !fullPriceInput.value) {
+            // Suggest 30% markup for full pack
+            fullPriceInput.value = (purchasePrice * 1.3).toFixed(2);
+            calculatePricing();
+        }
+    }
+
+    // Bind events
+    if (purchasePriceInput) {
+        purchasePriceInput.addEventListener('input', calculatePricing);
+        purchasePriceInput.addEventListener('blur', suggestFullPrice);
+    }
+    
+    if (fullPriceInput) {
+        fullPriceInput.addEventListener('input', calculatePricing);
+    }
+
+    // Initial calculation
+    calculatePricing();
+
+    // Form validation
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const purchasePrice = parseFloat(purchasePriceInput.value) || 0;
+            const fullPrice = parseFloat(fullPriceInput.value) || 0;
+
+            if (fullPrice <= purchasePrice) {
+                e.preventDefault();
+                alert('Full pack selling price must be greater than purchase price.');
+                fullPriceInput.focus();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+                        <strong>TOTAL PROFIT:</strong>
+                    </div>
+                    <div class="col-4 text  -end">
+                        <strong class="text-primary">{{ format_currency(sale.total_profit) }}</strong>

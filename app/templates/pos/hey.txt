@@ -1,0 +1,18 @@
+You need to update the following URL references in your templates:
+
+CHANGE FROM: url_for('pos.pos_page')
+CHANGE TO:   url_for('pos_system.pos_page')
+
+CHANGE FROM: url_for('pos.checkout') 
+CHANGE TO:   url_for('pos_system.checkout')
+
+CHANGE FROM: url_for('pos.receipt', sale_id=...)
+CHANGE TO:   url_for('pos_system.receipt', sale_id=...)
+
+Files to update:
+1. app/templates/base.html - line with navbar POS link
+2. app/templates/index.html - dashboard quick actions and recent sales
+3. app/templates/pos/pos.html - checkout JavaScript fetch URL
+4. app/templates/pos/receipt.html - "New Sale" button link
+
+Or use the simpler solution below...

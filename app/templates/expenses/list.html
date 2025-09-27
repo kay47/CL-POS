@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Expenses - POS System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h1 class="h2">Business Expenses</h1>
+        <p class="text-muted">Track and manage your business expenses</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <a href="{{ url_for('expenses.add_expense') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Add Expense
+        </a>
+        <a href="{{ url_for('expenses.expense_summary') }}" class="btn btn-info">
+            <i class="bi bi-graph-up"></i> Summary
+        </a>
+    </div>
+</div>
+
+<!-- Filter Form -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-3">
+                <label for="category" class="form-label">Category</label>
+                <select class="form-select" id="category" name="category">
+                    <option value="all" {{ 'selected' if category == 'all' else '' }}>All Categories</option>
+                    {% for value, label in categories %}
+                    <option value="{{ value }}" {{ 'selected' if category == value else '' }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-funnel"></i> Filter
+                </button>
+                <a href="{{ url_for('expenses.list_expenses') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-danger">
+            <div class="card-body text-center">
+                <h5 class="card-title">Total Expenses</h5>
+                <h3 class="mb-0">{{ total_expenses }}</h3>
+                <small>records found</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-warning">
+            <div class="card-body text-center">
+                <h5 class="card-title">Total Amount</h5>
+                <h3 class="mb-0">GHS {{ "%.2f"|format(total_amount) }}</h3>
+                <small>in selected period</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-info">
+            <div class="card-body text-center">
+                <h5 class="card-title">Average Expense</h5>
+                <h3 class="mb-0">GHS {{ "%.2f"|format(total_amount / total_expenses if total_expenses > 0 else 0) }}</h3>
+                <small>per transaction</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Expenses Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-receipt"></i> Expense Records
+        </h5>
+        <span class="badge bg-secondary">{{ expenses.total }} total</span>
+    </div>
+    <div class="card-body">
+        {% if expenses.items %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Receipt #</th>
+                        <th>Added By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses.items %}
+                    <tr>
+                        <td>
+                            <strong>{{ expense.date.strftime('%Y-%m-%d') }}</strong><br>
+                            <small class="text-muted">{{ expense.created_at.strftime('%H:%M') }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">
+                                {{ dict(categories)[expense.category] }}
+                            </span>
+                        </td>
+                        <td>
+                            <strong>{{ expense.description }}</strong>
+                            {% if expense.notes %}
+                            <br><small class="text-muted">{{ expense.notes[:50] }}{% if expense.notes|length > 50 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong class="text-danger">GHS {{ "%.2f"|format(expense.amount) }}</strong>
+                        </td>
+                        <td>
+                            {% if expense.receipt_number %}
+                            <span class="badge bg-light text-dark">{{ expense.receipt_number }}</span>
+                            {% else %}
+                            <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ expense.user.username }}</small>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('expenses.edit_expense', expense_id=expense.id) }}" 
+                                   class="btn btn-outline-primary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{{ url_for('expenses.confirm_delete_expense', expense_id=expense.id) }}" 
+                                   class="btn btn-outline-danger" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if expenses.pages > 1 %}
+        <nav aria-label="Expenses pagination" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if expenses.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('expenses.list_expenses', page=expenses.prev_num, start_date=start_date, end_date=end_date, category=category) }}">
+                        <i class="bi bi-chevron-left"></i> Previous
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for page_num in expenses.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                    {% if page_num %}
+                        {% if page_num != expenses.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('expenses.list_expenses', page=page_num, start_date=start_date, end_date=end_date, category=category) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if expenses.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('expenses.list_expenses', page=expenses.next_num, start_date=start_date, end_date=end_date, category=category) }}">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-5">
+            <i class="bi bi-receipt fs-1 text-muted"></i>
+            <h5 class="mt-3 text-muted">No Expenses Found</h5>
+            <p class="text-muted">No expenses match your current filters.</p>
+            <a href="{{ url_for('expenses.add_expense') }}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Add Your First Expense
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default dates if empty
+    const today = new Date().toISOString().split('T')[0];
+    const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+    
+    if (!startDateInput.value) {
+        startDateInput.value = firstDayOfMonth;
+    }
+    
+    if (!endDateInput.value) {
+        endDateInput.value = today;
+    }
+    
+    // Auto-submit form when dates change
+    startDateInput.addEventListener('change', function() {
+        if (endDateInput.value && startDateInput.value > endDateInput.value) {
+            endDateInput.value = startDateInput.value;
+        }
+    });
+    
+    endDateInput.addEventListener('change', function() {
+        if (startDateInput.value && endDateInput.value < startDateInput.value) {
+            startDateInput.value = endDateInput.value;
+        }
+    });
+});
+</script>
+{% endblock %}

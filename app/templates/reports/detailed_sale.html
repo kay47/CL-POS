@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Sale Details #{{ sale.id }} - POS System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Sale Details #{{ sale.id }}</h5>
+                <div>
+                    <button class="btn btn-primary btn-sm" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                    <a href="{{ url_for('pos.receipt', sale_id=sale.id) }}" 
+                       class="btn btn-secondary btn-sm" target="_blank">
+                        <i class="bi bi-receipt"></i> Receipt
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Sale Information -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6><strong>Sale Information</strong></h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td><strong>Sale ID:</strong></td>
+                                <td>#{{ sale.id }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Date:</strong></td>
+                                <td>{{ sale.created_at.strftime('%B %d, %Y') }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Time:</strong></td>
+                                <td>{{ sale.created_at.strftime('%I:%M %p') }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Clerk:</strong></td>
+                                <td>{{ sale.clerk.username }} ({{ sale.clerk.role.title() }})</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><strong>Summary</strong></h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td><strong>Items Count:</strong></td>
+                                <td>{{ sale.sale_items|length }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Total Quantity:</strong></td>
+                                <td>{{ sale.sale_items|sum(attribute='quantity') }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Total Amount:</strong></td>
+                                <td class="text-success"><strong>{{ format_currency(sale.total_amount) }}</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Items -->
+                <h6><strong>Items Sold</strong></h6>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Line Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in sale.sale_items %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.product.name }}</strong>
+                                    {% if item.product.description %}
+                                        <br><small class="text-muted">{{ item.product.description[:50] }}{% if item.product.description|length > 50 %}...{% endif %}</small>
+                                    {% endif %}
+                                </td>
+                                <td><code>{{ item.product.sku }}</code></td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ format_currency(item.price_at_sale) }}</td>
+                                <td><strong>{{ format_currency(item.line_total) }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="4" class="text-end">Total:</th>
+                                <th class="text-success">{{ format_currency(sale.total_amount) }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                <!-- Additional Information -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <h6><strong>Payment Information</strong></h6>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            Payment method: Cash (assumed)
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><strong>Actions</strong></h6>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('pos.receipt', sale_id=sale.id) }}" 
+                               class="btn btn-outline-primary" target="_blank">
+                                <i class="bi bi-receipt"></i> View Receipt
+                            </a>
+                            <a href="{{ url_for('reports.sales_reports') }}" 
+                               class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Reports
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+@media print {
+    .btn, .card-header button, .navbar, .alert { 
+        display: none !important; 
+    }
+    .card { 
+        border: none !important; 
+        box-shadow: none !important; 
+    }
+    .card-body { 
+        padding: 20px; 
+    }
+    body { 
+        font-size: 12px; 
+    }
+    .container-fluid { 
+        margin: 0; 
+        padding: 0; 
+    }
+}
+</style>
+{% endblock %}

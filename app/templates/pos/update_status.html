@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Update Sale Status - MY LORD ENTERPRISE POS SYSTEM{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="card-title mb-0">
+                    <i class="bi bi-pencil-square"></i> Update Sale Status
+                </h4>
+            </div>
+            <div class="card-body">
+                <!-- Sale Information -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="bg-light p-3 rounded">
+                            <h6 class="text-muted mb-2">Sale Information</h6>
+                            <p class="mb-1"><strong>Invoice #:</strong> {{ sale.invoice_number }}</p>
+                            <p class="mb-1"><strong>Date:</strong> {{ sale.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                            <p class="mb-1"><strong>Clerk:</strong> {{ sale.clerk.username }}</p>
+                            <p class="mb-0"><strong>Total:</strong> <span class="text-success">GH₵ {{ "%.2f"|format(sale.total_amount) }}</span></p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="bg-light p-3 rounded">
+                            <h6 class="text-muted mb-2">Current Status</h6>
+                            <p class="mb-0">
+                                {% if sale.status == 'completed' %}
+                                    <span class="badge bg-success fs-6">
+                                        <i class="bi bi-check-circle"></i> Completed
+                                    </span>
+                                {% elif sale.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark fs-6">
+                                        <i class="bi bi-clock"></i> Pending
+                                    </span>
+                                {% elif sale.status == 'cancelled' %}
+                                    <span class="badge bg-danger fs-6">
+                                        <i class="bi bi-x-circle"></i> Cancelled
+                                    </span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sale Items -->
+                <div class="mb-4">
+                    <h6 class="text-muted mb-3">Sale Items ({{ sale.sale_items|length }} items)</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>SKU</th>
+                                    <th>Price</th>
+                                    <th>Quantity</th>
+                                    <th class="text-end">Line Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in sale.sale_items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.product.name }}</strong>
+                                        {% if item.product.quantity < item.quantity and sale.status != 'completed' %}
+                                            <br><small class="text-danger">
+                                                <i class="bi bi-exclamation-triangle"></i> 
+                                                Insufficient stock ({{ item.product.quantity }} available)
+                                            </small>
+                                        {% endif %}
+                                    </td>
+                                    <td><code>{{ item.product.sku }}</code></td>
+                                    <td>GH₵ {{ "%.2f"|format(item.price_at_sale) }}</td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-end">GH₵ {{ "%.2f"|format(item.price_at_sale * item.quantity) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th colspan="4" class="text-end">Total Amount:</th>
+                                    <th class="text-end text-success">GH₵ {{ "%.2f"|format(sale.total_amount) }}</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Status Update Form -->
+                <form method="POST" class="mb-3">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row align-items-end">
+                        <div class="col-md-6">
+                            <label class="form-label" for="{{ form.status.id }}">
+                                <strong>New Status</strong>
+                            </label>
+                            {{ form.status(class="form-select") }}
+                            {% if form.status.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.status.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-check-circle"></i> Update Status
+                                </button>
+                                <a href="{{ url_for('pos.list_sales') }}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Back to Sales
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Status Change Warnings -->
+                <div class="alert alert-info" role="alert">
+                    <h6 class="alert-heading">
+                        <i class="bi bi-info-circle"></i> Status Change Effects
+                    </h6>
+                    <ul class="mb-0">
+                        <li><strong>Pending to Completed:</strong> Items will be deducted from inventory</li>
+                        <li><strong>Completed to Pending/Cancelled:</strong> Items will be returned to inventory</li>
+                        <li><strong>Any to Cancelled:</strong> Sale will be marked as cancelled</li>
+                    </ul>
+                </div>
+
+                <!-- Stock Warnings -->
+                {% set insufficient_stock = [] %}
+                {% for item in sale.sale_items %}
+                    {% if item.product.quantity < item.quantity and sale.status != 'completed' %}
+                        {% set _ = insufficient_stock.append(item) %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if insufficient_stock and sale.status != 'completed' %}
+                <div class="alert alert-warning" role="alert">
+                    <h6 class="alert-heading">
+                        <i class="bi bi-exclamation-triangle"></i> Stock Warning
+                    </h6>
+                    <p>The following items have insufficient stock to complete this sale:</p>
+                    <ul class="mb-0">
+                        {% for item in insufficient_stock %}
+                        <li>
+                            <strong>{{ item.product.name }}</strong> - 
+                            Needs {{ item.quantity }}, only {{ item.product.quantity }} available
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statusSelect = document.getElementById('{{ form.status.id }}');
+    const currentStatus = '{{ sale.status }}';
+    
+    // Add change event listener to show confirmation for certain status changes
+    statusSelect.addEventListener('change', function() {
+        const newStatus = this.value;
+        
+        if (currentStatus === 'completed' && newStatus !== 'completed') {
+            if (!confirm('Changing from "Completed" will return items to inventory. Are you sure?')) {
+                this.value = currentStatus;
+            }
+        } else if (currentStatus !== 'completed' && newStatus === 'completed') {
+            const hasInsufficientStock = {{ 'true' if insufficient_stock else 'false' }};
+            if (hasInsufficientStock) {
+                alert('Cannot complete sale due to insufficient stock. Please check inventory levels.');
+                this.value = currentStatus;
+            } else if (!confirm('Completing this sale will deduct items from inventory. Are you sure?')) {
+                this.value = currentStatus;
+            }
+        } else if (newStatus === 'cancelled') {
+            if (!confirm('Are you sure you want to cancel this sale?')) {
+                this.value = currentStatus;
+            }
+        }
+    });
+    
+    // Highlight current status option
+    Array.from(statusSelect.options).forEach(option => {
+        if (option.value === currentStatus) {
+            option.style.fontWeight = 'bold';
+            option.text = option.text + ' (Current)';
+        }
+    });
+});
+</script>
+{% endblock %}
