@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Password Reset Token - POS System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0">
+                    <i class="bi bi-shield-exclamation"></i> Password Reset Token Generated
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Note:</strong> In a production system, this would be sent via email. 
+                    For now, please provide this reset link to the user.
+                </div>
+                
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">Reset Information</h5>
+                        <div class="row mb-2">
+                            <div class="col-sm-3"><strong>Username:</strong></div>
+                            <div class="col-sm-9">{{ username }}</div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-sm-3"><strong>Reset Link:</strong></div>
+                            <div class="col-sm-9">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" 
+                                           id="resetLink" 
+                                           value="{{ url_for('auth.reset_password', token=token, _external=True) }}" 
+                                           readonly>
+                                    <button class="btn btn-outline-secondary" 
+                                            type="button" 
+                                            onclick="copyResetLink()" 
+                                            title="Copy Link">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-3"><strong>Expires:</strong></div>
+                            <div class="col-sm-9">
+                                <span class="text-warning">1 hour from now</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-exclamation-triangle"></i> Instructions for User:</h6>
+                    <ol class="mb-0">
+                        <li>Click the reset link above</li>
+                        <li>Enter a new secure password</li>
+                        <li>Confirm the password</li>
+                        <li>Click "Reset Password" to complete</li>
+                    </ol>
+                    <hr>
+                    <small class="text-muted">
+                        <strong>Security Note:</strong> This link expires in 1 hour and can only be used once.
+                    </small>
+                </div>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{{ url_for('auth.manage_users') }}" class="btn btn-secondary">
+                        <i class="bi bi-people"></i> Back to Users
+                    </a>
+                    <a href="{{ url_for('auth.reset_password', token=token) }}" 
+                       class="btn btn-warning" 
+                       target="_blank">
+                        <i class="bi bi-box-arrow-up-right"></i> Test Reset Link
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyResetLink() {
+    const linkInput = document.getElementById('resetLink');
+    linkInput.select();
+    linkInput.setSelectionRange(0, 99999); // For mobile devices
+    
+    navigator.clipboard.writeText(linkInput.value).then(function() {
+        // Show feedback
+        const button = linkInput.nextElementSibling;
+        const originalContent = button.innerHTML;
+        button.innerHTML = '<i class="bi bi-check"></i> Copied!';
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-success');
+        
+        setTimeout(() => {
+            button.innerHTML = originalContent;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+    }).catch(function(err) {
+        alert('Failed to copy link. Please copy manually.');
+    });
+}
+</script>
+{% endblock %}
