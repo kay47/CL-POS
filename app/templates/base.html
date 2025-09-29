@@ -47,15 +47,35 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-person"></i> {{ current_user.username }}
+                            {% if current_user.needs_password_change() %}
+                            <span class="badge bg-warning ms-1">!</span>
+                            {% endif %}
                         </a>
                         <ul class="dropdown-menu">
                             <li><h6 class="dropdown-header">Role: {{ current_user.role.title() }}</h6></li>
                             <li><hr class="dropdown-divider"></li>
+                            
+                            {% if current_user.needs_password_change() %}
+                            <li><a class="dropdown-item text-warning" href="{{ url_for('auth.change_password') }}">
+                                <i class="bi bi-exclamation-triangle"></i> Change Password (Required)
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            {% else %}
+                            <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}">
+                                <i class="bi bi-shield-lock"></i> Change Password
+                            </a></li>
+                            {% endif %}
+                            
                             {% if current_user.is_admin() %}
                             <li><a class="dropdown-item" href="{{ url_for('auth.register') }}">
                                 <i class="bi bi-person-plus"></i> Add User
                             </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.manage_users') }}">
+                                <i class="bi bi-people"></i> Manage Users
+                            </a></li>
                             {% endif %}
+                            
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
                                 <i class="bi bi-box-arrow-right"></i> Logout
                             </a></li>

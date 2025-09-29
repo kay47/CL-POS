@@ -12,7 +12,7 @@ bp = Blueprint('main', __name__)
 def index():
     current_date = datetime.now().strftime('%B %d, %Y')
     
-    # Basic stats
+    # Basic stats - available to all users
     total_products = Product.query.count()
     low_stock_products = Product.query.filter(Product.quantity <= 5).count()
     
@@ -23,15 +23,25 @@ def index():
         Sale.status == 'completed'
     ).count()
     
-    # Recent sales with pagination
+    # Recent sales with pagination - available to all users
     page = request.args.get('page', 1, type=int)
-    recent_sales = Sale.query.filter(
-        Sale.status == 'completed'
-    ).order_by(Sale.created_at.desc()).paginate(
-        page=page, per_page=10, error_out=False
-    )
     
-    # Low stock products list (first 10)
+    # Cashiers see only their own sales, managers/admins see all
+    if current_user.role == 'cashier':
+        recent_sales = Sale.query.filter(
+            Sale.clerk_id == current_user.id,
+            Sale.status == 'completed'
+        ).order_by(Sale.created_at.desc()).paginate(
+            page=page, per_page=10, error_out=False
+        )
+    else:
+        recent_sales = Sale.query.filter(
+            Sale.status == 'completed'
+        ).order_by(Sale.created_at.desc()).paginate(
+            page=page, per_page=10, error_out=False
+        )
+    
+    # Low stock products list (first 10) - available to all users
     low_stock_list = Product.query.filter(
         Product.quantity <= 5
     ).order_by(Product.quantity.asc()).limit(10).all()
@@ -49,14 +59,14 @@ def index():
     }
     
     stock_stats = {
-        'total_products': 0,
+        'total_products': total_products,  # Basic count for everyone
         'in_stock_count': 0,
-        'low_stock_count': 0,
+        'low_stock_count': low_stock_products,  # Basic count for everyone
         'out_of_stock_count': 0,
         'total_quantity': 0
     }
     
-    # Calculate stock values for managers and admins
+    # Calculate detailed stock values for managers and admins only
     if current_user.role in ['manager', 'admin']:
         try:
             # Stock value calculation
@@ -94,6 +104,18 @@ def index():
         except Exception as e:
             # Log error but continue with default values
             print(f"Error calculating stock values: {e}")
+    else:
+        # For cashiers, provide basic stock statistics
+        try:
+            in_stock_count = Product.query.filter(Product.quantity > 0).count()
+            out_of_stock_count = Product.query.filter(Product.quantity == 0).count()
+            total_quantity = db.session.query(func.sum(Product.quantity)).scalar() or 0
+            
+            stock_stats['in_stock_count'] = in_stock_count
+            stock_stats['out_of_stock_count'] = out_of_stock_count
+            stock_stats['total_quantity'] = int(total_quantity)
+        except Exception as e:
+            print(f"Error calculating basic stock stats: {e}")
     
     return render_template('index.html',
                          current_date=current_date,

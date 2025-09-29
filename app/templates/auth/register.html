@@ -12,6 +12,11 @@
                 </h3>
             </div>
             <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Note:</strong> A temporary password will be automatically generated for the new user. They must change it on first login.
+                </div>
+
                 <form method="POST">
                     {{ form.hidden_tag() }}
                     
@@ -28,15 +33,16 @@
                     </div>
                     
                     <div class="mb-3">
-                        {{ form.password.label(class="form-label") }}
-                        {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
-                        {% if form.password.errors %}
+                        {{ form.email.label(class="form-label") }}
+                        {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
+                        {% if form.email.errors %}
                             <div class="invalid-feedback">
-                                {% for error in form.password.errors %}
+                                {% for error in form.email.errors %}
                                     {{ error }}
                                 {% endfor %}
                             </div>
                         {% endif %}
+                        <div class="form-text">Optional - for password reset notifications</div>
                     </div>
                     
                     <div class="mb-3">
@@ -49,16 +55,34 @@
                                 {% endfor %}
                             </div>
                         {% endif %}
+                        <div class="form-text">Optional - for password reset notifications</div>
                     </div>
                     
+                    <!-- Password Generation Info -->
+                    <div class="card bg-light mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="bi bi-key-fill"></i> Password Setup
+                            </h6>
+                            <div class="form-check">
+                                {{ form.generate_password(class="form-check-input", checked=true, disabled=true) }}
+                                {{ form.generate_password.label(class="form-check-label") }}
+                            </div>
+                            <small class="text-muted">
+                                A secure temporary password will be generated automatically. 
+                                The user will be required to change it on first login.
+                            </small>
+                        </div>
+                    </div>
+
                     <div class="d-grid">
                         {{ form.submit(class="btn btn-success") }}
                     </div>
                 </form>
             </div>
             <div class="card-footer text-center">
-                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-arrow-left"></i> Back to Dashboard
+                <a href="{{ url_for('auth.manage_users') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Back to User Management
                 </a>
             </div>
         </div>

@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, TextAreaField, DecimalField, IntegerField, SubmitField, BooleanField, DateField
-from wtforms.validators import DataRequired, Length, NumberRange, ValidationError, Optional, EqualTo
+from wtforms import StringField, PasswordField, SelectField, TextAreaField, DecimalField, IntegerField, SubmitField, BooleanField, DateField, HiddenField
+from wtforms.validators import DataRequired, Length, NumberRange, ValidationError, Optional, EqualTo, Email
 from app.models import User, Product
 from datetime import datetime
 
@@ -11,18 +11,112 @@ class LoginForm(FlaskForm):
 
 class RegisterForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=20)])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+    
     role = SelectField('Role', choices=[
         ('cashier', 'Cashier'),
         ('manager', 'Manager'),
         ('admin', 'Administrator')
     ], default='cashier')
-    submit = SubmitField('Register')
+
+    # Note: Password is now generated automatically
+    generate_password = BooleanField('Generate Temporary Password', default=True, 
+                                   render_kw={'disabled': True, 'checked': True})
+    
+    # Optional email for password reset notifications
+    email = StringField('Email (Optional)', validators=[Optional(), Email()], 
+                       render_kw={'placeholder': 'user@example.com'})
+    
+    submit = SubmitField('Create User')  # Changed from 'Register' to 'Create User'
     
     def validate_username(self, username):
         user = User.query.filter_by(username=username.data).first()
         if user:
             raise ValidationError('Username already exists. Choose a different one.')
+
+class ChangePasswordForm(FlaskForm):
+    """Form for users to change their own password"""
+    current_password = PasswordField('Current Password', 
+                                   validators=[DataRequired()],
+                                   render_kw={'placeholder': 'Enter your current password'})
+    
+    new_password = PasswordField('New Password', 
+                                validators=[
+                                    DataRequired(), 
+                                    Length(min=8, message="Password must be at least 8 characters long")
+                                ],
+                                render_kw={'placeholder': 'Enter new password'})
+    
+    confirm_password = PasswordField('Confirm New Password', 
+                                   validators=[
+                                       DataRequired(),
+                                       EqualTo('new_password', message='Passwords must match')
+                                   ],
+                                   render_kw={'placeholder': 'Confirm new password'})
+    
+    submit = SubmitField('Change Password')
+    
+    def validate_current_password(self, field):
+        """Validate that the current password is correct"""
+        from flask_login import current_user
+        if not current_user.check_password(field.data):
+            raise ValidationError('Current password is incorrect.')
+    
+    def validate_new_password(self, field):
+        """Ensure new password is different from current password"""
+        from flask_login import current_user
+        if current_user.check_password(field.data):
+            raise ValidationError('New password must be different from your current password.')
+
+class FirstTimePasswordChangeForm(FlaskForm):
+    """Form for first-time password change with temporary password"""
+    username = StringField('Username', validators=[DataRequired()],
+                          render_kw={'readonly': True})
+    
+    temporary_password = PasswordField('Temporary Password', 
+                                     validators=[DataRequired()],
+                                     render_kw={'placeholder': 'Enter the temporary password given to you'})
+    
+    new_password = PasswordField('New Password', 
+                                validators=[
+                                    DataRequired(), 
+                                    Length(min=8, message="Password must be at least 8 characters long")
+                                ],
+                                render_kw={'placeholder': 'Create your new password'})
+    
+    confirm_password = PasswordField('Confirm New Password', 
+                                   validators=[
+                                       DataRequired(),
+                                       EqualTo('new_password', message='Passwords must match')
+                                   ],
+                                   render_kw={'placeholder': 'Confirm your new password'})
+    
+    submit = SubmitField('Set New Password')
+
+class ForgotPasswordForm(FlaskForm):
+    """Form to request password reset"""
+    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=20)],
+                          render_kw={'placeholder': 'Enter your username'})
+    submit = SubmitField('Request Password Reset')
+
+class ResetPasswordForm(FlaskForm):
+    """Form to reset password with token"""
+    token = HiddenField('Token', validators=[DataRequired()])
+    
+    new_password = PasswordField('New Password', 
+                                validators=[
+                                    DataRequired(), 
+                                    Length(min=8, message="Password must be at least 8 characters long")
+                                ],
+                                render_kw={'placeholder': 'Enter your new password'})
+    
+    confirm_password = PasswordField('Confirm New Password', 
+                                   validators=[
+                                       DataRequired(),
+                                       EqualTo('new_password', message='Passwords must match')
+                                   ],
+                                   render_kw={'placeholder': 'Confirm your new password'})
+    
+    submit = SubmitField('Reset Password')
 
 class ProductForm(FlaskForm):
     # Add SKU field for editing existing products
@@ -129,6 +223,9 @@ class EditUserForm(FlaskForm):
         ('manager', 'Manager'),
         ('admin', 'Administrator')
     ], validators=[DataRequired()])
+
+    # Admin can reset user password (generates new temporary password)
+    reset_password = BooleanField('Reset Password (Generate New Temporary Password)')
     
     password = PasswordField('New Password (leave blank to keep current)', validators=[
         Optional(),

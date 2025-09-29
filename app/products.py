@@ -253,6 +253,19 @@ def download_csv_template():
     writer.writerow(['Sample Electronics Item', 'electronics', 'Sample description', '10.00', '15.00', '100'])
     writer.writerow(['Sample Clothing Item', 'clothing', 'Another description', '5.50', '8.25', '50'])
     writer.writerow(['Sample Food Item', 'food', 'Food item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample beauty Item', 'beauty', 'beauty item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample books Item', 'books', 'books item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample home Item', 'home', 'home item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample sports Item', 'sports', 'sports item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample automotive Item', 'automotive', 'automotive item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample toys Item', 'toys', 'toys item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample health Item', 'health', 'health item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample jewelry Item', 'jewelry', 'jewelry item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample music Item', 'music', 'music item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample pets Item', 'pets', 'pets item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample office Item', 'office', 'office item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample tools Item', 'tools', 'tools item description', '2.00', '3.50', '200'])
+    writer.writerow(['Sample other Item', 'other', 'other item description', '2.00', '3.50', '200'])
     
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv'
@@ -346,3 +359,270 @@ def all_products():
         for p in products
     ]
     return jsonify(results)
+
+@bp.route('/bulk-update', methods=['POST'])
+@login_required
+@admin_required
+def bulk_update_products():
+    """Handle bulk update of products"""
+    print("=== BULK UPDATE DEBUG START ===")
+    
+    try:
+        # Check if request has JSON content
+        if not request.is_json:
+            print(f"ERROR: Request is not JSON. Content-Type: {request.content_type}")
+            return jsonify({'success': False, 'message': 'Request must be JSON'}), 400
+        
+        data = request.get_json()
+        print(f"Received data: {data}")
+        
+        if not data:
+            print("ERROR: No data provided")
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
+        
+        product_ids = data.get('product_ids', [])
+        print(f"Product IDs: {product_ids}")
+        
+        if not product_ids:
+            print("ERROR: No products selected")
+            return jsonify({'success': False, 'message': 'No products selected'}), 400
+        
+        # Convert string IDs to integers
+        try:
+            product_ids = [int(pid) for pid in product_ids]
+            print(f"Converted product IDs: {product_ids}")
+        except (ValueError, TypeError) as e:
+            print(f"ERROR: Invalid product ID format: {e}")
+            return jsonify({'success': False, 'message': f'Invalid product ID format: {str(e)}'}), 400
+        
+        # Get the products to update
+        products = Product.query.filter(Product.id.in_(product_ids)).all()
+        print(f"Found {len(products)} products to update")
+        
+        if not products:
+            print("ERROR: No valid products found")
+            return jsonify({'success': False, 'message': 'No valid products found'}), 404
+        
+        updated_count = 0
+        
+        for product in products:
+            print(f"Updating product: {product.sku} - {product.name}")
+            
+            try:
+                # Update purchase price
+                if data.get('purchase_price') is not None and str(data['purchase_price']).strip() != '':
+                    try:
+                        new_purchase_price = Decimal(str(data['purchase_price']))
+                        print(f"  Setting purchase price: {new_purchase_price}")
+                        if new_purchase_price >= 0:
+                            product.purchase_price = new_purchase_price
+                    except (ValueError, TypeError) as e:
+                        error_msg = f'Invalid purchase price format for product {product.sku}: {str(e)}'
+                        print(f"ERROR: {error_msg}")
+                        return jsonify({'success': False, 'message': error_msg}), 400
+                
+                # Update full price
+                if data.get('full_price') is not None and str(data['full_price']).strip() != '':
+                    try:
+                        new_full_price = Decimal(str(data['full_price']))
+                        print(f"  Setting full price: {new_full_price}")
+                        if new_full_price > 0:
+                            product.full_price = new_full_price
+                            product.price = new_full_price  # For backward compatibility
+                    except (ValueError, TypeError) as e:
+                        error_msg = f'Invalid full price format for product {product.sku}: {str(e)}'
+                        print(f"ERROR: {error_msg}")
+                        return jsonify({'success': False, 'message': error_msg}), 400
+                
+                # Update half price or auto-calculate
+                if data.get('half_price') is not None and str(data['half_price']).strip() != '':
+                    try:
+                        new_half_price = Decimal(str(data['half_price']))
+                        print(f"  Setting half price: {new_half_price}")
+                        if new_half_price > 0:
+                            product.half_price = new_half_price
+                    except (ValueError, TypeError) as e:
+                        error_msg = f'Invalid half price format for product {product.sku}: {str(e)}'
+                        print(f"ERROR: {error_msg}")
+                        return jsonify({'success': False, 'message': error_msg}), 400
+                elif data.get('full_price') is not None and str(data['full_price']).strip() != '':
+                    # Auto-calculate half price if full price was updated but half price not provided
+                    auto_half_price = product.full_price / Decimal('2')
+                    print(f"  Auto-calculating half price: {auto_half_price}")
+                    product.half_price = auto_half_price
+                
+                # Update quantity
+                if data.get('quantity') is not None and str(data['quantity']).strip() != '':
+                    try:
+                        new_quantity = int(data['quantity'])
+                        print(f"  Setting quantity: {new_quantity}")
+                        if new_quantity >= 0:
+                            product.quantity = new_quantity
+                    except (ValueError, TypeError) as e:
+                        error_msg = f'Invalid quantity format for product {product.sku}: {str(e)}'
+                        print(f"ERROR: {error_msg}")
+                        return jsonify({'success': False, 'message': error_msg}), 400
+                
+                # Update category
+                if data.get('category') is not None and str(data['category']).strip() != '':
+                    new_category = str(data['category']).strip()
+                    print(f"  Setting category: {new_category}")
+                    
+                    # Validate category
+                    valid_categories = [cat[0] for cat in Product.CATEGORIES]
+                    print(f"  Valid categories: {valid_categories}")
+                    
+                    if new_category in valid_categories:
+                        old_category = product.category
+                        product.category = new_category
+                        
+                        # If category changed, generate new SKU
+                        if old_category != new_category:
+                            try:
+                                print(f"  Category changed from {old_category} to {new_category}, generating new SKU")
+                                new_sku = Product.generate_sku(new_category)
+                                
+                                # Ensure uniqueness
+                                counter = 1
+                                original_sku = new_sku
+                                while Product.query.filter_by(sku=new_sku).filter(Product.id != product.id).first():
+                                    base = original_sku[:3]
+                                    base_number = int(original_sku[3:])
+                                    new_sku = f"{base}{(base_number + counter):04d}"
+                                    counter += 1
+                                
+                                print(f"  Generated new SKU: {new_sku}")
+                                product.sku = new_sku
+                            except Exception as sku_error:
+                                error_msg = f'Error generating SKU for product {product.sku}: {str(sku_error)}'
+                                print(f"ERROR: {error_msg}")
+                                return jsonify({'success': False, 'message': error_msg}), 400
+                    else:
+                        error_msg = f'Invalid category "{new_category}" for product {product.sku}. Valid options: {", ".join(valid_categories)}'
+                        print(f"ERROR: {error_msg}")
+                        return jsonify({'success': False, 'message': error_msg}), 400
+                
+                # Validate prices after all updates
+                print(f"  Validating prices - Purchase: {product.purchase_price}, Full: {product.full_price}, Half: {product.half_price}")
+                
+                if product.purchase_price >= product.full_price:
+                    error_msg = f'Purchase price (GHS {product.purchase_price}) must be less than full price (GHS {product.full_price}) for product {product.sku}'
+                    print(f"ERROR: {error_msg}")
+                    return jsonify({'success': False, 'message': error_msg}), 400
+                
+                if product.half_price and product.half_price >= product.full_price:
+                    error_msg = f'Half price (GHS {product.half_price}) must be less than full price (GHS {product.full_price}) for product {product.sku}'
+                    print(f"ERROR: {error_msg}")
+                    return jsonify({'success': False, 'message': error_msg}), 400
+                
+                updated_count += 1
+                print(f"  Successfully updated product {product.sku}")
+                
+            except Exception as product_error:
+                error_msg = f'Error updating product {product.sku}: {str(product_error)}'
+                print(f"ERROR: {error_msg}")
+                return jsonify({'success': False, 'message': error_msg}), 400
+        
+        # Commit all changes
+        try:
+            print(f"Committing changes for {updated_count} products")
+            db.session.commit()
+            print("Database commit successful")
+        except Exception as commit_error:
+            db.session.rollback()
+            error_msg = f'Database error while saving changes: {str(commit_error)}'
+            print(f"ERROR: {error_msg}")
+            return jsonify({'success': False, 'message': error_msg}), 500
+        
+        success_msg = f'Successfully updated {updated_count} products'
+        print(f"SUCCESS: {success_msg}")
+        print("=== BULK UPDATE DEBUG END ===")
+        
+        return jsonify({
+            'success': True, 
+            'message': success_msg,
+            'updated_count': updated_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        error_msg = f'Unexpected error: {str(e)}'
+        print(f"FATAL ERROR: {error_msg}")
+        print("=== BULK UPDATE DEBUG END (WITH ERROR) ===")
+        return jsonify({'success': False, 'message': error_msg}), 500
+    
+    # Add this route to your products.py file
+
+@bp.route('/bulk-delete', methods=['POST'])
+@login_required
+@admin_required
+def bulk_delete_products():
+    """Handle bulk deletion of products"""
+    try:
+        product_ids = request.form.getlist('product_ids[]')
+        
+        if not product_ids:
+            flash('No products selected for deletion.', 'error')
+            return redirect(url_for('products.list_products'))
+        
+        # Convert to integers
+        try:
+            product_ids = [int(pid) for pid in product_ids]
+        except ValueError:
+            flash('Invalid product IDs provided.', 'error')
+            return redirect(url_for('products.list_products'))
+        
+        # Get the products to delete
+        products = Product.query.filter(Product.id.in_(product_ids)).all()
+        
+        if not products:
+            flash('No valid products found for deletion.', 'error')
+            return redirect(url_for('products.list_products'))
+        
+        # Check if any products have sales history
+        products_with_sales = []
+        products_to_delete = []
+        
+        for product in products:
+            if product.sale_items:
+                products_with_sales.append(product)
+            else:
+                products_to_delete.append(product)
+        
+        # If some products have sales history, show error
+        if products_with_sales:
+            product_names = [p.name for p in products_with_sales[:3]]
+            more_count = len(products_with_sales) - 3
+            names_str = ', '.join(product_names)
+            if more_count > 0:
+                names_str += f' and {more_count} more'
+            
+            flash(f'Cannot delete products with sales history: {names_str}', 'error')
+            
+            # If no products can be deleted, return early
+            if not products_to_delete:
+                return redirect(url_for('products.list_products'))
+        
+        # Delete the products that don't have sales history
+        deleted_count = 0
+        deleted_names = []
+        
+        for product in products_to_delete:
+            deleted_names.append(f"{product.name} ({product.sku})")
+            db.session.delete(product)
+            deleted_count += 1
+        
+        db.session.commit()
+        
+        if deleted_count > 0:
+            if deleted_count <= 3:
+                flash(f'Successfully deleted: {", ".join(deleted_names)}', 'success')
+            else:
+                flash(f'Successfully deleted {deleted_count} products', 'success')
+        
+        return redirect(url_for('products.list_products'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting products: {str(e)}', 'error')
+        return redirect(url_for('products.list_products'))

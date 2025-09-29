@@ -284,6 +284,7 @@
     </div>
 </div>
 
+<!-- Bulk Update Modal -->
 <div class="modal fade" id="bulkUpdateModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -298,7 +299,8 @@
                         You can edit multiple products at once. Leave fields blank to keep current values.
                     </div>
                     <div id="bulk-products-list">
-                        </div>
+                        <!-- Dynamic content will be inserted here -->
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -331,45 +333,47 @@ document.addEventListener("DOMContentLoaded", function () {
         const query = searchInput.value.trim();
         const currentUrl = new URL(window.location.href);
 
-        // 1. Set the new search query (q) or remove it if empty
+        // Set the new search query (q) or remove it if empty
         if (query) {
             currentUrl.searchParams.set('q', query);
         } else {
             currentUrl.searchParams.delete('q');
         }
 
-        // 2. Always reset to page 1 for a new search/filter
+        // Always reset to page 1 for a new search/filter
         currentUrl.searchParams.set('page', '1');
 
-        // 3. Redirect to the new URL, preserving all other parameters (like 'category')
+        // Redirect to the new URL, preserving all other parameters
         window.location.href = currentUrl.toString();
     }
 
-    // =========================================================================
-    // FIX: Replaced the client-side 'fetch' search with a debounced server-side 
-    //      redirect to ensure a full, correctly rendered page every time.
-    // =========================================================================
-
     // "Search while typing" functionality (using a debounce to prevent excessive requests)
-    searchInput.addEventListener("input", function () {
-        // Clear any previous timer
-        clearTimeout(searchTimerId);
+    if (searchInput) {
+        searchInput.addEventListener("input", function () {
+            // Clear any previous timer
+            clearTimeout(searchTimerId);
 
-        // Set a new timer to execute doSearch after 300ms of no further input
-        searchTimerId = setTimeout(doSearch, 300);
-    });
+            // Set a new timer to execute doSearch after 300ms of no further input
+            searchTimerId = setTimeout(doSearch, 300);
+        });
+    }
     
     // Search Button Click Handler
-    document.getElementById('search-btn').addEventListener('click', doSearch);
+    const searchBtn = document.getElementById('search-btn');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', doSearch);
+    }
 
     // Search Input Enter Key Handler
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            // Immediately execute the search without waiting for the timeout
-            clearTimeout(searchTimerId); 
-            doSearch();
-        }
-    });
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                // Immediately execute the search without waiting for the timeout
+                clearTimeout(searchTimerId); 
+                doSearch();
+            }
+        });
+    }
 
     // Checkbox selection logic
     function attachCheckboxListeners() {
@@ -385,7 +389,9 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         const selectedCount = selectedProducts.size;
-        selectedCountBadge.textContent = `${selectedCount} selected`;
+        if (selectedCountBadge) {
+            selectedCountBadge.textContent = `${selectedCount} selected`;
+        }
 
         if (bulkUpdateBtn) bulkUpdateBtn.disabled = selectedCount === 0;
         if (bulkDeleteBtn) bulkDeleteBtn.disabled = selectedCount === 0;
@@ -428,6 +434,225 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // Bulk Update Functionality
+    const bulkUpdateModal = document.getElementById('bulkUpdateModal');
+    const bulkProductsList = document.getElementById('bulk-products-list');
+    const saveBulkUpdateBtn = document.getElementById('save-bulk-update');
+    
+    let modalInstance = null;
+    if (bulkUpdateModal) {
+        modalInstance = new bootstrap.Modal(bulkUpdateModal);
+    }
+
+    // Bulk Update Button Click Handler
+    if (bulkUpdateBtn) {
+        bulkUpdateBtn.addEventListener('click', function() {
+            const selectedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
+            
+            if (selectedCheckboxes.length === 0) {
+                alert('Please select at least one product to update.');
+                return;
+            }
+
+            // Clear previous content
+            if (bulkProductsList) {
+                bulkProductsList.innerHTML = '';
+
+                // Create form for selected products
+                const form = document.createElement('form');
+                form.id = 'bulk-update-form';
+                
+                // Add bulk update fields
+                form.innerHTML = `
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Purchase Price (GHS)</label>
+                            <input type="number" class="form-control" id="bulk-purchase-price" step="0.01" placeholder="Leave blank to keep current">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Full Price (GHS)</label>
+                            <input type="number" class="form-control" id="bulk-full-price" step="0.01" placeholder="Leave blank to keep current">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Half Price (GHS)</label>
+                            <input type="number" class="form-control" id="bulk-half-price" step="0.01" placeholder="Leave blank for auto-calculation">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Stock Quantity</label>
+                            <input type="number" class="form-control" id="bulk-quantity" placeholder="Leave blank to keep current">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" id="bulk-category">
+                            <option value="">Keep current category</option>
+                            <option value="electronics">Electronics</option>
+                            <option value="clothing">Clothing</option>
+                            <option value="food">Food & Beverages</option>
+                            <option value="beauty">Beauty & Personal Care</option>
+                            <option value="books">Books & Stationery</option>
+                            <option value="home">Home & Garden</option>
+                            <option value="sports">Sports & Recreation</option>
+                            <option value="automotive">Automotive</option>
+                            <option value="toys">Toys & Games</option>
+                            <option value="health">Health & Wellness</option>
+                            <option value="jewelry">Jewelry & Accessories</option>
+                            <option value="music">Music & Instruments</option>
+                            <option value="pets">Pet Supplies</option>
+                            <option value="office">Office Supplies</option>
+                            <option value="tools">Tools & Hardware</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <hr>
+                    <h6>Selected Products (${selectedCheckboxes.length}):</h6>
+                    <div class="selected-products-list">
+                        ${Array.from(selectedCheckboxes).map(checkbox => {
+                            const row = checkbox.closest('tr');
+                            const sku = row.querySelector('code').textContent;
+                            const name = row.querySelector('strong').textContent;
+                            return `
+                                <div class="d-flex justify-content-between align-items-center py-1">
+                                    <span>${sku} - ${name}</span>
+                                    <input type="hidden" name="product_ids[]" value="${checkbox.value}">
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+
+                bulkProductsList.appendChild(form);
+                if (modalInstance) {
+                    modalInstance.show();
+                }
+            }
+        });
+    }
+
+    // Save Bulk Update Handler
+    if (saveBulkUpdateBtn) {
+        saveBulkUpdateBtn.addEventListener('click', function() {
+            const form = document.getElementById('bulk-update-form');
+            if (!form) return;
+
+            // Get form data
+            const purchasePrice = document.getElementById('bulk-purchase-price').value;
+            const fullPrice = document.getElementById('bulk-full-price').value;
+            const halfPrice = document.getElementById('bulk-half-price').value;
+            const quantity = document.getElementById('bulk-quantity').value;
+            const category = document.getElementById('bulk-category').value;
+            
+            // Get selected product IDs
+            const productIds = Array.from(form.querySelectorAll('input[name="product_ids[]"]')).map(input => input.value);
+
+            if (productIds.length === 0) {
+                alert('No products selected.');
+                return;
+            }
+
+            // Basic validation
+            if (purchasePrice && fullPrice && parseFloat(purchasePrice) >= parseFloat(fullPrice)) {
+                alert('Purchase price must be less than full price.');
+                return;
+            }
+
+            // Prepare data for submission
+            const updateData = {
+                product_ids: productIds,
+                purchase_price: purchasePrice || null,
+                full_price: fullPrice || null,
+                half_price: halfPrice || null,
+                quantity: quantity || null,
+                category: category || null
+            };
+
+            // Show loading state
+            saveBulkUpdateBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Updating...';
+            saveBulkUpdateBtn.disabled = true;
+
+            // Send AJAX request
+            fetch('{{ url_for("products.bulk_update_products") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(updateData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`Successfully updated ${data.updated_count} products!`);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                    }
+                    window.location.reload(); // Reload to show updated data
+                } else {
+                    alert(`Error: ${data.message || 'Unknown error occurred'}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating products.');
+            })
+            .finally(() => {
+                // Reset button state
+                saveBulkUpdateBtn.innerHTML = 'Save Changes';
+                saveBulkUpdateBtn.disabled = false;
+            });
+        });
+    }
+
+    // Bulk Delete Functionality
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.addEventListener('click', function() {
+            const selectedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
+            
+            if (selectedCheckboxes.length === 0) {
+                alert('Please select at least one product to delete.');
+                return;
+            }
+
+            // Check if any selected products have sales history
+            const productsWithSales = Array.from(selectedCheckboxes).filter(checkbox => 
+                checkbox.dataset.hasSales === 'true'
+            );
+
+            if (productsWithSales.length > 0) {
+                alert(`Cannot delete ${productsWithSales.length} product(s) that have sales history.`);
+                return;
+            }
+
+            const productNames = Array.from(selectedCheckboxes).map(checkbox => {
+                const row = checkbox.closest('tr');
+                return row.querySelector('strong').textContent;
+            });
+
+            if (confirm(`Are you sure you want to delete ${selectedCheckboxes.length} products?\n\n${productNames.slice(0, 5).join(', ')}${productNames.length > 5 ? '...' : ''}`)) {
+                const productIds = Array.from(selectedCheckboxes).map(checkbox => checkbox.value);
+                
+                // Create and submit form for bulk deletion
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ url_for("products.bulk_delete_products") }}';
+                
+                productIds.forEach(id => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'product_ids[]';
+                    input.value = id;
+                    form.appendChild(input);
+                });
+                
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    }
+
+    // Initialize
     attachCheckboxListeners();
     updateSelectionState();
 });

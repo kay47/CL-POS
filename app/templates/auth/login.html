@@ -38,6 +38,12 @@
                             </div>
                         {% endif %}
                     </div>
+
+                    <div class="mb-3 text-end">
+                        <a href="{{ url_for('auth.forgot_password') }}" class="text-decoration-none small">
+                            Forgot your password?
+                        </a>
+                    </div>
                     
                     <div class="d-grid">
                         {{ form.submit(class="btn btn-primary") }}
@@ -45,7 +51,10 @@
                 </form>
             </div>
             <div class="card-footer text-center text-muted">
-                <small>Default login: admin / admin123</small>
+                <small>
+                    <!--Default admin login: admin / admin123<br>-->
+                    <span class="text-warning">Change default password after first login!</span>
+                </small>
             </div>
         </div>
     </div>

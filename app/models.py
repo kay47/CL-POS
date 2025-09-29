@@ -1,10 +1,12 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from app import db
 from decimal import Decimal
 from sqlalchemy import func
+import secrets
+import string
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -14,16 +16,82 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
+    # New fields for temporary password functionality
+    is_temporary_password = db.Column(db.Boolean, default=False, nullable=False)
+    password_reset_token = db.Column(db.String(100), nullable=True)
+    password_reset_expires = db.Column(db.DateTime, nullable=True)
+    must_change_password = db.Column(db.Boolean, default=False, nullable=False)
+    last_password_change = db.Column(db.DateTime, nullable=True)
+
     # Relationships
     sales = db.relationship('Sale', backref='clerk', lazy=True)
     expenses = db.relationship('Expense', backref='user', lazy=True)
 
-    def set_password(self, password):
+    def set_password(self, password, is_temporary=False):
+        """Set password with option to mark as temporary"""
         self.password_hash = generate_password_hash(password)
+        self.is_temporary_password = is_temporary
+        self.must_change_password = is_temporary
+        self.last_password_change = datetime.utcnow()
+    
+        self.password_reset_token = None
+        self.password_reset_expires = None
     
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
     
+    @staticmethod
+    def generate_temporary_password(length=8):
+        """Generate a secure temporary password"""
+        # Use a mix of letters and numbers, avoiding ambiguous characters
+        characters = string.ascii_letters + string.digits
+        # Remove potentially confusing characters
+        characters = characters.replace('0', '').replace('O', '').replace('l', '').replace('1', '').replace('I', '')
+        return ''.join(secrets.choice(characters) for _ in range(length))
+    
+    def generate_password_reset_token(self, expires_in=3600):  # 1 hour default
+        """Generate a password reset token that expires"""
+        token = secrets.token_urlsafe(32)
+        self.password_reset_token = token
+        self.password_reset_expires = datetime.utcnow() + timedelta(seconds=expires_in)
+        return token
+    
+    def verify_reset_token(self, token):
+        """Verify if the reset token is valid and not expired"""
+        if not self.password_reset_token or not self.password_reset_expires:
+            return False
+        
+        if datetime.utcnow() > self.password_reset_expires:
+            # Token expired, clear it
+            self.password_reset_token = None
+            self.password_reset_expires = None
+            return False
+        
+        return self.password_reset_token == token
+    
+    def needs_password_change(self):
+        """Check if user needs to change their password"""
+        return self.must_change_password or self.is_temporary_password
+    
+    def is_password_expired(self, max_age_days=90):
+        """Check if password has expired (optional feature)"""
+        if not self.last_password_change:
+            return True
+        
+        expiry_date = self.last_password_change + timedelta(days=max_age_days)
+        return datetime.utcnow() > expiry_date
+    
+    def complete_password_change(self, new_password):
+        """Complete the password change process"""
+        self.set_password(new_password, is_temporary=False)
+        self.is_temporary_password = False
+        self.must_change_password = False
+        self.last_password_change = datetime.utcnow()
+        
+        # Clear reset token if it exists
+        self.password_reset_token = None
+        self.password_reset_expires = None
+        
     def is_admin(self):
         return self.role == 'admin'
     

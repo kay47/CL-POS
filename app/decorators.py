@@ -9,6 +9,11 @@ def admin_required(func):
         if not current_user.is_authenticated:
             flash('Please log in to access this page.', 'info')
             return redirect(url_for('auth.login'))
+        # Check if password change is required
+        if current_user.needs_password_change():
+            flash('You must change your temporary password before accessing this page.', 'warning')
+            return redirect(url_for('auth.change_password'))
+        
         if current_user.role != 'admin':
             flash('Access denied. Administrator access required.', 'error')
             return redirect(url_for('main.index'))
@@ -22,6 +27,12 @@ def manager_required(func):
         if not current_user.is_authenticated:
             flash('Please log in to access this page.', 'info')
             return redirect(url_for('auth.login'))
+        
+        # Check if password change is required
+        if current_user.needs_password_change():
+            flash('You must change your temporary password before accessing this page.', 'warning')
+            return redirect(url_for('auth.change_password'))
+        
         if current_user.role not in ['manager', 'admin']:
             flash('Access denied. Manager access required.', 'error')
             return redirect(url_for('main.index'))
@@ -35,9 +46,31 @@ def cashier_required(func):
         if not current_user.is_authenticated:
             flash('Please log in to access this page.', 'info')
             return redirect(url_for('auth.login'))
+        
+        # Check if password change is required
+        if current_user.needs_password_change():
+            flash('You must change your temporary password before accessing this page.', 'warning')
+            return redirect(url_for('auth.change_password'))
+        
         if current_user.role not in ['clerk', 'cashier', 'manager', 'admin']:
             flash('Access denied. Cashier privileges required.', 'error')
             return redirect(url_for('main.index'))
+        return func(*args, **kwargs)
+    return wrapper
+
+def password_change_required(func):
+    """Decorator to ensure user has changed temporary password"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('Please log in to access this page.', 'info')
+            return redirect(url_for('auth.login'))
+        
+        # Check if password change is required
+        if current_user.needs_password_change():
+            flash('You must change your temporary password before accessing this page.', 'warning')
+            return redirect(url_for('auth.change_password'))
+        
         return func(*args, **kwargs)
     return wrapper
 
@@ -59,6 +92,11 @@ def role_required(roles):
             if not current_user.is_authenticated:
                 flash('Please log in to access this page.', 'info')
                 return redirect(url_for('auth.login'))
+            
+            # Check if password change is required
+            if current_user.needs_password_change():
+                flash('You must change your temporary password before accessing this page.', 'warning')
+                return redirect(url_for('auth.change_password'))
             
             # Handle both single role and list of roles
             if isinstance(roles, str):
@@ -83,5 +121,8 @@ def api_key_required(f):
     def wrapper(*args, **kwargs):
         if not current_user.is_authenticated:
             abort(401)
+
+         # For API endpoints, we might want to allow access even with temp passwords
+        # but return a different response indicating password change is needed
         return f(*args, **kwargs)
     return wrapper
