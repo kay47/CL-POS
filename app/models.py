@@ -7,6 +7,7 @@ from decimal import Decimal
 from sqlalchemy import func
 import secrets
 import string
+import os
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -43,13 +44,11 @@ class User(UserMixin, db.Model):
     @staticmethod
     def generate_temporary_password(length=8):
         """Generate a secure temporary password"""
-        # Use a mix of letters and numbers, avoiding ambiguous characters
         characters = string.ascii_letters + string.digits
-        # Remove potentially confusing characters
         characters = characters.replace('0', '').replace('O', '').replace('l', '').replace('1', '').replace('I', '')
         return ''.join(secrets.choice(characters) for _ in range(length))
     
-    def generate_password_reset_token(self, expires_in=3600):  # 1 hour default
+    def generate_password_reset_token(self, expires_in=3600):
         """Generate a password reset token that expires"""
         token = secrets.token_urlsafe(32)
         self.password_reset_token = token
@@ -62,7 +61,6 @@ class User(UserMixin, db.Model):
             return False
         
         if datetime.utcnow() > self.password_reset_expires:
-            # Token expired, clear it
             self.password_reset_token = None
             self.password_reset_expires = None
             return False
@@ -88,7 +86,6 @@ class User(UserMixin, db.Model):
         self.must_change_password = False
         self.last_password_change = datetime.utcnow()
         
-        # Clear reset token if it exists
         self.password_reset_token = None
         self.password_reset_expires = None
         
@@ -120,6 +117,7 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return f'<User {self.username}>'
 
+
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sku = db.Column(db.String(20), unique=True, nullable=False, index=True)
@@ -128,9 +126,17 @@ class Product(db.Model):
     description = db.Column(db.Text)
     purchase_price = db.Column(db.Numeric(10, 2), nullable=False)
     full_price = db.Column(db.Numeric(10, 2), nullable=False)
-    half_price = db.Column(db.Numeric(10, 2), nullable=True)  # ADD THIS FIELD
+    half_price = db.Column(db.Numeric(10, 2), nullable=True)
     price = db.Column(db.Numeric(10, 2), nullable=False)  # For backward compatibility
-    quantity = db.Column(db.Integer, nullable=False, default=0)
+
+    units_per_pack = db.Column(db.Integer, default=1, nullable=False)  # How many units in a full pack
+    unit_price = db.Column(db.Numeric(10, 2), nullable=True)  # Price per single unit (retail)
+    quantity = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+
+    # Product image fields
+    image_filename = db.Column(db.String(255), nullable=True)
+    image_path = db.Column(db.String(500), nullable=True)
+    
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -156,28 +162,50 @@ class Product(db.Model):
         ('tools', 'Tools & Hardware'),
         ('other', 'Other')
     ]
+
+    # Image configuration
+    ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
+    
+    @property
+    def has_image(self):
+        """Check if product has an image"""
+        return self.image_filename is not None and self.image_path is not None
+    
+    @property
+    def image_url(self):
+        """Get URL for product image"""
+        if self.has_image:
+            return f'/static/uploads/product_images/{self.image_filename}'
+        return '/static/images/no-product-image.png'  # Default placeholder
+    
+    @property
+    def total_units_available(self):
+        """Calculate total units available (packs * units_per_pack)"""
+        return float(self.quantity) * self.units_per_pack
+    
+    @staticmethod
+    def allowed_image_file(filename):
+        """Check if image file extension is allowed"""
+        return '.' in filename and \
+               filename.rsplit('.', 1)[1].lower() in Product.ALLOWED_IMAGE_EXTENSIONS
     
     @staticmethod
     def generate_sku(category):
         """Generate a unique SKU based on category prefix + sequential number"""
-        # Get category prefix (first 3 letters, uppercase)
         category_prefix = category.upper()[:3]
         
-        # Find the highest existing SKU number for this category
         existing_skus = db.session.query(Product.sku).filter(
             Product.sku.like(f'{category_prefix}%')
         ).all()
         
         if not existing_skus:
-            # First product in this category
             next_number = 1
         else:
-            # Extract numbers from existing SKUs and find the highest
             numbers = []
             for (sku,) in existing_skus:
                 try:
-                    # Extract the numeric part after the category prefix
-                    number_part = sku[3:]  # Remove first 3 letters
+                    number_part = sku[3:]
                     if number_part.isdigit():
                         numbers.append(int(number_part))
                 except (ValueError, IndexError):
@@ -185,31 +213,25 @@ class Product(db.Model):
             
             next_number = max(numbers, default=0) + 1
         
-        # Format as 4-digit number with leading zeros
         return f"{category_prefix}{next_number:04d}"
     
     @classmethod
     def create_with_auto_sku(cls, name, category, description=None, purchase_price=0, 
                            full_price=0, half_price=None, quantity=0):
         """Create a new product with auto-generated SKU"""
-        # Generate unique SKU
         sku = cls.generate_sku(category)
         
-        # Ensure SKU is unique (in case of race conditions)
         counter = 1
         original_sku = sku
         while cls.query.filter_by(sku=sku).first():
-            # Extract base and number
             base = original_sku[:3]
             base_number = int(original_sku[3:])
             sku = f"{base}{(base_number + counter):04d}"
             counter += 1
         
-        # Auto-calculate half_price if not provided
         if half_price is None and full_price:
             half_price = Decimal(str(full_price)) / Decimal('2')
         
-        # Create the product
         product = cls(
             sku=sku,
             name=name,
@@ -218,7 +240,7 @@ class Product(db.Model):
             purchase_price=Decimal(str(purchase_price)),
             full_price=Decimal(str(full_price)),
             half_price=Decimal(str(half_price)) if half_price else None,
-            price=Decimal(str(full_price)),  # Backward compatibility
+            price=Decimal(str(full_price)),
             quantity=quantity
         )
         
@@ -226,7 +248,10 @@ class Product(db.Model):
     
     def get_price_for_unit(self, unit_type='full'):
         """Get price based on unit type"""
-        if unit_type == 'half':
+        if unit_type == 'unit':
+            # Return custom unit price if set, otherwise calculate from full price
+            return self.calculated_unit_price
+        elif unit_type == 'half':
             return self.half_price if self.half_price else (self.full_price / Decimal('2'))
         elif unit_type == 'quarter':
             return self.full_price / Decimal('4')
@@ -236,7 +261,11 @@ class Product(db.Model):
     def get_profit_for_unit(self, unit_type='full'):
         """Calculate profit for a unit type"""
         selling_price = self.get_price_for_unit(unit_type)
-        if unit_type == 'half':
+        
+        if unit_type == 'unit':
+            # Cost per unit = purchase price / units per pack
+            cost = self.purchase_price / Decimal(str(self.units_per_pack))
+        elif unit_type == 'half':
             cost = self.purchase_price / Decimal('2')
         elif unit_type == 'quarter':
             cost = self.purchase_price / Decimal('4')
@@ -259,6 +288,18 @@ class Product(db.Model):
             return (profit / self.full_price) * 100
         return 0
     
+    def calculate_inventory_deduction(self, quantity, unit_type='full'):
+        """Calculate how many packs to deduct from inventory based on unit type and quantity"""
+        if unit_type == 'unit':
+            # Convert units to packs (e.g., 5 units with 12 units_per_pack = 0.4167 packs)
+            return Decimal(str(quantity)) / Decimal(str(self.units_per_pack))
+        elif unit_type == 'half':
+            return Decimal(str(quantity)) * Decimal('0.5')
+        elif unit_type == 'quarter':
+            return Decimal(str(quantity)) * Decimal('0.25')
+        else:  # full
+            return Decimal(str(quantity))
+        
     @property
     def is_low_stock(self):
         """Check if product is low on stock"""
@@ -295,10 +336,28 @@ class Product(db.Model):
         """Calculate profit for full pack"""
         return self.full_price - self.purchase_price
     
+    @property
+    def profit_per_unit(self):
+        """Calculate profit for single retail unit"""
+        return self.get_profit_for_unit('unit')
+    
+    @property
+    def calculated_unit_price(self):
+        """Get unit price, calculating if not set"""
+        if self.unit_price:
+            return self.unit_price
+        # Calculate from full price divided by units per pack
+        return self.full_price / Decimal(str(self.units_per_pack))
+    
+    @property
+    def cost_per_unit(self):
+        """Calculate cost per single unit"""
+        return self.purchase_price / Decimal(str(self.units_per_pack))
+    
     def __repr__(self):
         return f'<Product {self.sku}: {self.name}>'
 
-# Rest of your models remain the same...
+
 class Sale(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_number = db.Column(db.String(20), unique=True, nullable=False)
@@ -328,23 +387,19 @@ class Sale(db.Model):
         """Generate invoice number with pattern INV{YEAR}{6-digit-sequence}"""
         current_year = datetime.now().year
         
-        # Get the highest invoice number for the current year
         latest_sale = db.session.query(Sale).filter(
             Sale.invoice_number.like(f'INV{current_year}%')
         ).order_by(Sale.invoice_number.desc()).first()
         
         if latest_sale:
-            # Extract the sequence number from the latest invoice
-            sequence_str = latest_sale.invoice_number[-6:]  # Get last 6 digits
+            sequence_str = latest_sale.invoice_number[-6:]
             try:
                 sequence = int(sequence_str) + 1
             except ValueError:
                 sequence = 1
         else:
-            # First invoice of the year
             sequence = 1
         
-        # Format as 6-digit number with leading zeros
         sequence_str = str(sequence).zfill(6)
         return f'INV{current_year}{sequence_str}'
     
@@ -376,25 +431,32 @@ class Sale(db.Model):
         return 0
     
     def __repr__(self):
-        return f'<Sale {self.id}>'
+        return f'<Sale {self.invoice_number}>'
+
 
 class SaleItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
-    unit_type = db.Column(db.String(10), nullable=False, default='full')
+    quantity = db.Column(db.Numeric(10, 2), nullable=False)  # Allows for 0.5, 0.25, etc.
+    unit_type = db.Column(db.String(10), nullable=False, default='full')  # full, half, quarter, unit
     price_at_sale = db.Column(db.Numeric(10, 2), nullable=False)
     cost_at_sale = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     
     @property
     def line_total(self):
+        """Calculate total for this line item"""
         return float(self.quantity * self.price_at_sale)
+    
+    @property
+    def line_cost(self):
+        """Calculate total cost for this line item"""
+        return float(self.quantity * self.cost_at_sale)
     
     @property
     def line_profit(self):
         """Calculate profit for this line item"""
-        return float(self.line_total) - (float(self.cost_at_sale) * self.quantity)
+        return self.line_total - self.line_cost
     
     @property
     def profit_margin_percentage(self):
@@ -409,12 +471,26 @@ class SaleItem(db.Model):
         unit_map = {
             'full': 'Full Pack',
             'half': 'Half Pack',
-            'quarter': 'Quarter Pack'
+            'quarter': 'Quarter Pack',
+            'unit': 'Retail Unit'
         }
         return unit_map.get(self.unit_type, 'Full Pack')
     
+    @property
+    def inventory_deducted(self):
+        """Calculate how much inventory was deducted for this sale item"""
+        if self.unit_type == 'unit':
+            return float(self.quantity) / float(self.product.units_per_pack)
+        elif self.unit_type == 'half':
+            return float(self.quantity) * 0.5
+        elif self.unit_type == 'quarter':
+            return float(self.quantity) * 0.25
+        else:  # full
+            return float(self.quantity)
+    
     def __repr__(self):
-        return f'<SaleItem {self.id}>'
+        return f'<SaleItem {self.id}: {self.quantity} x {self.unit_display} of {self.product.name}>'
+
 
 class Expense(db.Model):
     """Model for tracking business expenses"""
@@ -426,6 +502,13 @@ class Expense(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     receipt_number = db.Column(db.String(50))
     notes = db.Column(db.Text)
+
+    # File upload fields
+    document_filename = db.Column(db.String(255))
+    document_path = db.Column(db.String(500))
+    document_size = db.Column(db.Integer)
+    document_type = db.Column(db.String(100))
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -441,6 +524,27 @@ class Expense(db.Model):
         ('professional', 'Professional Services'),
         ('other', 'Other')
     ]
+    
+    ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx'}
+    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+    
+    @staticmethod
+    def allowed_file(filename):
+        """Check if file extension is allowed"""
+        return '.' in filename and \
+               filename.rsplit('.', 1)[1].lower() in Expense.ALLOWED_EXTENSIONS
+    
+    @property
+    def has_document(self):
+        """Check if expense has an attached document"""
+        return self.document_filename is not None
+    
+    @property
+    def document_size_kb(self):
+        """Get document size in KB"""
+        if self.document_size:
+            return round(self.document_size / 1024, 2)
+        return 0
     
     def __repr__(self):
         return f'<Expense {self.description}: GHS {self.amount}>'

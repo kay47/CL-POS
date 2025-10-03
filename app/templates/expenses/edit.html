@@ -15,7 +15,7 @@
                 </a>
             </div>
             <div class="card-body">
-                <form method="POST" novalidate>
+                <form method="POST" enctype="multipart/form-data" novalidate>
                     {{ form.hidden_tag() }}
                     
                     <div class="row">
@@ -70,6 +70,48 @@
                                 {% endfor %}
                                 <div class="form-text">Reference number for tracking</div>
                             </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Supporting Document Upload Section -->
+                    <div class="mb-3">
+                        {{ form.supporting_document.label(class="form-label") }}
+                        {% if expense and expense.has_document %}
+                        <span class="badge bg-success ms-2">
+                            <i class="bi bi-check-circle"></i> Document attached
+                        </span>
+                        {% else %}
+                        <span class="badge bg-danger ms-2">
+                            <i class="bi bi-exclamation-circle"></i> Required
+                        </span>
+                        {% endif %}
+                        
+                        {% if expense and expense.has_document %}
+                        <div class="alert alert-info mt-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-file-earmark-pdf"></i>
+                                    <strong>Current Document:</strong> {{ expense.document_filename }}
+                                    <small class="text-muted">({{ expense.document_size_kb }} KB)</small>
+                                </div>
+                                <a href="{{ url_for('expenses.download_expense_document', expense_id=expense.id) }}" 
+                                   class="btn btn-sm btn-primary" target="_blank">
+                                    <i class="bi bi-download"></i> Download
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {{ form.supporting_document(class="form-control" + (" is-invalid" if form.supporting_document.errors else ""), accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx") }}
+                        {% for error in form.supporting_document.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">
+                            {% if expense %}
+                                Upload a new file to replace the existing document
+                            {% else %}
+                                Upload receipt, invoice, or other supporting document (PDF, images, or documents - max 5MB)
+                            {% endif %}
                         </div>
                     </div>
                     
@@ -146,6 +188,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         this.value = value;
     });
+    
+    // File upload preview
+    const fileInput = document.getElementById('supporting_document');
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                const fileSize = file.size / 1024 / 1024; // in MB
+                
+                if (fileSize > 5) {
+                    alert('File size exceeds 5MB limit. Please choose a smaller file.');
+                    this.value = '';
+                    return;
+                }
+                
+                // Show file info
+                const fileName = file.name;
+                const fileSizeKB = (file.size / 1024).toFixed(2);
+                console.log(`Selected file: ${fileName} (${fileSizeKB} KB)`);
+            }
+        });
+    }
     
     // Prevent form submission on enter in amount field
     amountInput.addEventListener('keydown', function(e) {

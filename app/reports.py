@@ -27,7 +27,7 @@ def sales_reports():
         end_date = datetime.now().strftime('%Y-%m-%d')
     
     # Build query
-    query = Sale.query
+    query = Sale.query.filter(Sale.status == 'completed')  # Only completed sales
     
     # Date filter
     if start_date:
@@ -41,49 +41,61 @@ def sales_reports():
         query = query.filter(Sale.clerk_id == int(clerk_id))
     
     # Get sales data
-    sales = query.order_by(desc(Sale.created_at)).all()
+    sales = query.order_by(desc(Sale.created_at)).limit(50).all()
     
-    # Calculate summary statistics
-    total_sales = len(sales)
-    total_revenue = sum(sale.total_amount for sale in sales)
-    average_sale = total_revenue / total_sales if total_sales > 0 else 0
+    # Calculate summary statistics - INCLUDING total_profit
+    total_sales = query.count()
+    total_revenue = query.with_entities(func.sum(Sale.total_amount)).scalar() or 0
+    total_profit = query.with_entities(func.sum(Sale.total_profit)).scalar() or 0
+    average_sale = float(total_revenue) / total_sales if total_sales > 0 else 0
     
     # Get top products - Convert Row objects to dictionaries
     top_products_query = db.session.query(
+        Product.id,
         Product.name,
+        Product.sku,
         func.sum(SaleItem.quantity).label('total_quantity'),
-        func.sum(SaleItem.quantity * SaleItem.price_at_sale).label('total_revenue')
+        func.sum(SaleItem.quantity * SaleItem.price_at_sale).label('total_revenue'),
+        func.sum((SaleItem.price_at_sale - SaleItem.cost_at_sale) * SaleItem.quantity).label('total_profit')
     ).join(SaleItem).join(Sale).filter(
         Sale.created_at >= datetime.strptime(start_date, '%Y-%m-%d'),
-        Sale.created_at < (datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1))
-    ).group_by(Product.id, Product.name).order_by(desc('total_revenue')).limit(10).all()
+        Sale.created_at < (datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)),
+        Sale.status == 'completed'
+    ).group_by(Product.id, Product.name, Product.sku).order_by(desc('total_revenue')).limit(20).all()
     
     # Convert to dictionaries
     top_products = [
         {
             'name': row.name,
+            'sku': row.sku,
             'total_quantity': int(row.total_quantity),
-            'total_revenue': float(row.total_revenue)
+            'total_revenue': float(row.total_revenue),
+            'total_profit': float(row.total_profit or 0)
         }
         for row in top_products_query
     ]
     
     # Get clerk performance - Convert Row objects to dictionaries
     clerk_performance_query = db.session.query(
+        User.id,
         User.username,
         func.count(Sale.id).label('total_sales'),
-        func.sum(Sale.total_amount).label('total_revenue')
+        func.sum(Sale.total_amount).label('total_revenue'),
+        func.sum(Sale.total_profit).label('total_profit')
     ).join(Sale).filter(
         Sale.created_at >= datetime.strptime(start_date, '%Y-%m-%d'),
-        Sale.created_at < (datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1))
+        Sale.created_at < (datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)),
+        Sale.status == 'completed'
     ).group_by(User.id, User.username).order_by(desc('total_revenue')).all()
     
     # Convert to dictionaries
     clerk_performance = [
         {
+            'id': row.id,
             'username': row.username,
             'total_sales': int(row.total_sales),
-            'total_revenue': float(row.total_revenue)
+            'total_revenue': float(row.total_revenue),
+            'total_profit': float(row.total_profit or 0)
         }
         for row in clerk_performance_query
     ]
@@ -92,10 +104,12 @@ def sales_reports():
     daily_sales_query = db.session.query(
         func.date(Sale.created_at).label('sale_date'),
         func.count(Sale.id).label('total_sales'),
-        func.sum(Sale.total_amount).label('total_revenue')
+        func.sum(Sale.total_amount).label('total_revenue'),
+        func.sum(Sale.total_profit).label('total_profit')
     ).filter(
         Sale.created_at >= datetime.strptime(start_date, '%Y-%m-%d'),
-        Sale.created_at < (datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1))
+        Sale.created_at < (datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)),
+        Sale.status == 'completed'
     ).group_by(func.date(Sale.created_at)).order_by('sale_date').all()
     
     # Convert to dictionaries
@@ -103,23 +117,44 @@ def sales_reports():
     for row in daily_sales_query:
         # Handle different date formats
         if hasattr(row.sale_date, 'strftime'):
-            # It's a datetime or date object
             date_str = row.sale_date.strftime('%Y-%m-%d')
         elif isinstance(row.sale_date, str):
-            # It's already a string
             date_str = row.sale_date
         else:
-            # Convert to string as fallback
             date_str = str(row.sale_date)
         
         daily_sales.append({
             'sale_date': date_str,
             'total_sales': int(row.total_sales),
-            'total_revenue': float(row.total_revenue)
+            'total_revenue': float(row.total_revenue),
+            'total_profit': float(row.total_profit or 0)
         })
     
+    # Get unit type performance
+    unit_type_stats = db.session.query(
+        SaleItem.unit_type,
+        func.sum(SaleItem.quantity).label('total_quantity'),
+        func.sum(SaleItem.price_at_sale * SaleItem.quantity).label('total_revenue'),
+        func.sum((SaleItem.price_at_sale - SaleItem.cost_at_sale) * SaleItem.quantity).label('total_profit')
+    ).join(Sale).filter(
+        Sale.created_at >= datetime.strptime(start_date, '%Y-%m-%d'),
+        Sale.created_at < (datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)),
+        Sale.status == 'completed'
+    ).group_by(SaleItem.unit_type).all()
+    
+    # Get payment method breakdown
+    payment_stats = db.session.query(
+        Sale.payment_method,
+        func.count(Sale.id).label('count'),
+        func.sum(Sale.total_amount).label('total_amount')
+    ).filter(
+        Sale.created_at >= datetime.strptime(start_date, '%Y-%m-%d'),
+        Sale.created_at < (datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)),
+        Sale.status == 'completed'
+    ).group_by(Sale.payment_method).all()
+    
     # Get all clerks for filter dropdown
-    clerks = User.query.filter(User.role.in_(['admin', 'manager', 'cashier'])).all()
+    clerks = User.query.filter(User.is_active == True).order_by(User.username).all()
     
     return render_template('reports/sales_report.html',
                          sales=sales,
@@ -128,10 +163,13 @@ def sales_reports():
                          clerk_id=clerk_id,
                          total_sales=total_sales,
                          total_revenue=total_revenue,
+                         total_profit=total_profit,  # THIS WAS MISSING!
                          average_sale=average_sale,
                          top_products=top_products,
                          clerk_performance=clerk_performance,
                          daily_sales=daily_sales,
+                         unit_type_stats=unit_type_stats,
+                         payment_stats=payment_stats,
                          clerks=clerks)
 
 @bp.route('/export')

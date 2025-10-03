@@ -36,7 +36,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title">Total Stock Value</h6>
-                        <h4 class="mb-0">{{ (total_stock_value or 0) | format_currency }}</h4>
+                        <h4 class="mb-0">GHS {{ (total_stock_value or 0)|currency }}</h4>
                         <small>Cost Price</small>
                     </div>
                     <div class="align-self-center">
@@ -53,7 +53,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title">Retail Value</h6>
-                        <h4 class="mb-0">{{ (total_retail_value or 0) | format_currency }}</h4>
+                        <h4 class="mb-0">GHS {{ (total_retail_value or 0)|currency }}</h4>
                         <small>Selling Price</small>
                     </div>
                     <div class="align-self-center">
@@ -70,7 +70,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title">Potential Profit</h6>
-                        <h4 class="mb-0">{{ (potential_profit or 0) | format_currency }}</h4>
+                        <h4 class="mb-0">GHS {{ (potential_profit or 0)|currency }}</h4>
                         <small>If all sold</small>
                     </div>
                     <div class="align-self-center">
@@ -181,9 +181,9 @@
                                 </span>
                             </td>
                             <td>
-                                <strong>{{ (product.purchase_price * product.quantity) | format_currency }}</strong>
+                                <strong>GHS {{ (product.purchase_price * product.quantity)|currency }}</strong>
                                 <br><small class="text-muted">
-                                    Retail: {{ (product.full_price * product.quantity) | format_currency }}
+                                    Retail: GHS {{ (product.full_price * product.quantity)|currency }}
                                 </small>
                             </td>
                             <td>

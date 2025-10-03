@@ -66,7 +66,7 @@
         <div class="card text-white bg-warning">
             <div class="card-body text-center">
                 <h5 class="card-title">Total Amount</h5>
-                <h3 class="mb-0">GHS {{ "%.2f"|format(total_amount) }}</h3>
+                <h3 class="mb-0">GHS {{ total_amount|currency }}</h3>
                 <small>in selected period</small>
             </div>
         </div>
@@ -75,7 +75,7 @@
         <div class="card text-white bg-info">
             <div class="card-body text-center">
                 <h5 class="card-title">Average Expense</h5>
-                <h3 class="mb-0">GHS {{ "%.2f"|format(total_amount / total_expenses if total_expenses > 0 else 0) }}</h3>
+                <h3 class="mb-0">GHS {{ (total_amount / total_expenses if total_expenses > 0 else 0)|currency }}</h3>
                 <small>per transaction</small>
             </div>
         </div>
@@ -101,6 +101,7 @@
                         <th>Description</th>
                         <th>Amount</th>
                         <th>Receipt #</th>
+                        <th>Document</th>
                         <th>Added By</th>
                         <th>Actions</th>
                     </tr>
@@ -124,13 +125,28 @@
                             {% endif %}
                         </td>
                         <td>
-                            <strong class="text-danger">GHS {{ "%.2f"|format(expense.amount) }}</strong>
+                            <strong class="text-danger">GHS {{ expense.amount|currency }}</strong>
                         </td>
                         <td>
                             {% if expense.receipt_number %}
                             <span class="badge bg-light text-dark">{{ expense.receipt_number }}</span>
                             {% else %}
                             <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if expense.has_document %}
+                            <a href="{{ url_for('expenses.download_expense_document', expense_id=expense.id) }}" 
+                               class="btn btn-sm btn-success" 
+                               title="Download {{ expense.document_filename }}"
+                               target="_blank">
+                                <i class="bi bi-file-earmark-pdf"></i>
+                                <small>{{ expense.document_size_kb }} KB</small>
+                            </a>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-exclamation-triangle"></i> Missing
+                            </span>
                             {% endif %}
                         </td>
                         <td>

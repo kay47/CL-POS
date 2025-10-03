@@ -1,13 +1,69 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_file
 from flask_login import login_required, current_user
 from app.models import Expense
-from app.forms import ExpenseForm
+from app.forms import ExpenseForm, ExpenseEditForm
 from app.decorators import manager_required
 from app import db
 from datetime import datetime, timedelta
 from sqlalchemy import func, desc
+from werkzeug.utils import secure_filename
+import os
 
 bp = Blueprint('expenses', __name__)
+
+# Configure upload folder - FIXED PATH HANDLING
+# Get the base directory of your app
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads', 'expense_documents')
+
+# Create the directory if it doesn't exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+print(f"Expense documents upload folder: {UPLOAD_FOLDER}")  # Debug print
+
+def save_expense_document(file, expense_id):
+    """Save uploaded document and return file info"""
+    if file and file.filename:
+        # Create secure filename with expense ID prefix
+        filename = secure_filename(file.filename)
+        # Add timestamp to prevent overwrites
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        name, ext = os.path.splitext(filename)
+        unique_filename = f"expense_{expense_id}_{timestamp}{ext}"
+        
+        # Use absolute path
+        filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+        
+        print(f"Saving file to: {filepath}")  # Debug print
+        
+        file.save(filepath)
+        
+        # Verify file was saved
+        if not os.path.exists(filepath):
+            raise Exception(f"File was not saved to {filepath}")
+        
+        # Get file info
+        file_size = os.path.getsize(filepath)
+        
+        return {
+            'filename': filename,  # Original filename
+            'path': filepath,  # Full absolute path
+            'size': file_size,
+            'type': file.content_type
+        }
+    return None
+
+def delete_expense_document(expense):
+    """Delete the expense document file"""
+    if expense.document_path and os.path.exists(expense.document_path):
+        try:
+            os.remove(expense.document_path)
+            print(f"Deleted file: {expense.document_path}")  # Debug print
+            return True
+        except Exception as e:
+            print(f"Error deleting file: {e}")
+            return False
+    return False
 
 @bp.route('/')
 @login_required
@@ -64,12 +120,12 @@ def list_expenses():
 
 @bp.route('/add', methods=['GET', 'POST'])
 @login_required
-#@manager_required
 def add_expense():
-    """Add a new expense"""
+    """Add a new expense with required supporting document"""
     form = ExpenseForm()
     
     if form.validate_on_submit():
+        # Create expense first to get ID
         expense = Expense(
             category=form.category.data,
             description=form.description.data.strip(),
@@ -81,9 +137,41 @@ def add_expense():
         )
         
         db.session.add(expense)
+        db.session.flush()  # Get expense ID before committing
+        
+        # Handle file upload
+        file = form.supporting_document.data
+        if file:
+            # Validate file size
+            file.seek(0, os.SEEK_END)
+            file_size = file.tell()
+            file.seek(0)
+            
+            if file_size > Expense.MAX_FILE_SIZE:
+                flash(f'File size exceeds maximum allowed size of {Expense.MAX_FILE_SIZE / (1024*1024)}MB', 'error')
+                db.session.rollback()
+                return render_template('expenses/edit.html', form=form, title='Add Expense')
+            
+            # Save file
+            try:
+                file_info = save_expense_document(file, expense.id)
+                if file_info:
+                    expense.document_filename = file_info['filename']
+                    expense.document_path = file_info['path']
+                    expense.document_size = file_info['size']
+                    expense.document_type = file_info['type']
+                else:
+                    flash('Error uploading file. Please try again.', 'error')
+                    db.session.rollback()
+                    return render_template('expenses/edit.html', form=form, title='Add Expense')
+            except Exception as e:
+                flash(f'Error uploading file: {str(e)}', 'error')
+                db.session.rollback()
+                return render_template('expenses/edit.html', form=form, title='Add Expense')
+        
         db.session.commit()
         
-        flash(f'Expense "{expense.description}" of GHS {expense.amount:.2f} added successfully!', 'success')
+        flash(f'Expense "{expense.description}" of GHS {expense.amount:.2f} added successfully with supporting document!', 'success')
         return redirect(url_for('expenses.list_expenses'))
     
     return render_template('expenses/edit.html', form=form, title='Add Expense')
@@ -94,7 +182,7 @@ def add_expense():
 def edit_expense(expense_id):
     """Edit an existing expense"""
     expense = Expense.query.get_or_404(expense_id)
-    form = ExpenseForm(obj=expense)
+    form = ExpenseEditForm(obj=expense)
     
     if form.validate_on_submit():
         expense.category = form.category.data
@@ -103,6 +191,33 @@ def edit_expense(expense_id):
         expense.date = form.date.data
         expense.receipt_number = form.receipt_number.data.strip() if form.receipt_number.data else None
         expense.notes = form.notes.data.strip() if form.notes.data else None
+        
+        # Handle new file upload (optional for editing)
+        file = form.supporting_document.data
+        if file:
+            # Validate file size
+            file.seek(0, os.SEEK_END)
+            file_size = file.tell()
+            file.seek(0)
+            
+            if file_size > Expense.MAX_FILE_SIZE:
+                flash(f'File size exceeds maximum allowed size of {Expense.MAX_FILE_SIZE / (1024*1024)}MB', 'error')
+                return render_template('expenses/edit.html', form=form, title='Edit Expense', expense=expense)
+            
+            # Delete old file
+            delete_expense_document(expense)
+            
+            # Save new file
+            try:
+                file_info = save_expense_document(file, expense.id)
+                if file_info:
+                    expense.document_filename = file_info['filename']
+                    expense.document_path = file_info['path']
+                    expense.document_size = file_info['size']
+                    expense.document_type = file_info['type']
+            except Exception as e:
+                flash(f'Error uploading file: {str(e)}', 'error')
+                return render_template('expenses/edit.html', form=form, title='Edit Expense', expense=expense)
         
         db.session.commit()
         flash(f'Expense "{expense.description}" updated successfully!', 'success')
@@ -114,16 +229,19 @@ def edit_expense(expense_id):
 @login_required
 @manager_required
 def delete_expense(expense_id):
-    """Delete an expense"""
+    """Delete an expense and its document"""
     expense = Expense.query.get_or_404(expense_id)
     
     description = expense.description
     amount = expense.amount
     
+    # Delete the file first
+    delete_expense_document(expense)
+    
     db.session.delete(expense)
     db.session.commit()
     
-    flash(f'Expense "{description}" (GHS {amount:.2f}) deleted successfully!', 'info')
+    flash(f'Expense "{description}" (GHS {amount:.2f}) and its supporting document deleted successfully!', 'info')
     return redirect(url_for('expenses.list_expenses'))
 
 @bp.route('/<int:expense_id>/delete/confirm')
@@ -133,6 +251,40 @@ def confirm_delete_expense(expense_id):
     """Show confirmation page before deleting expense"""
     expense = Expense.query.get_or_404(expense_id)
     return render_template('expenses/confirm_delete.html', expense=expense)
+
+@bp.route('/<int:expense_id>/download-document')
+@login_required
+def download_expense_document(expense_id):
+    """Download the expense supporting document"""
+    expense = Expense.query.get_or_404(expense_id)
+    
+    # Check permissions - only managers or the user who created it
+    if not current_user.is_manager() and expense.user_id != current_user.id:
+        flash('You do not have permission to access this document.', 'error')
+        return redirect(url_for('expenses.list_expenses'))
+    
+    if not expense.has_document:
+        flash('No document attached to this expense.', 'error')
+        return redirect(url_for('expenses.list_expenses'))
+    
+    # Debug print
+    print(f"Attempting to download: {expense.document_path}")
+    print(f"File exists: {os.path.exists(expense.document_path)}")
+    
+    if not os.path.exists(expense.document_path):
+        flash('Document file not found on server.', 'error')
+        return redirect(url_for('expenses.list_expenses'))
+    
+    try:
+        return send_file(
+            expense.document_path,
+            as_attachment=True,
+            download_name=expense.document_filename
+        )
+    except Exception as e:
+        print(f"Error sending file: {e}")
+        flash(f'Error downloading document: {str(e)}', 'error')
+        return redirect(url_for('expenses.list_expenses'))
 
 @bp.route('/summary')
 @login_required

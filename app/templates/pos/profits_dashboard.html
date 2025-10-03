@@ -64,7 +64,7 @@
                         <div class="d-flex justify-content-between">
                             <div>
                                 <h6 class="card-title">Total Revenue</h6>
-                                <h4>GHS {{ "%.2f"|format(total_revenue) }}</h4>
+                                <h4>GHS {{ total_revenue|currency }}</h4>
                             </div>
                             <i class="bi bi-currency-dollar" style="font-size: 2rem; opacity: 0.7;"></i>
                         </div>
@@ -77,7 +77,7 @@
                         <div class="d-flex justify-content-between">
                             <div>
                                 <h6 class="card-title">Total Profit</h6>
-                                <h4>GHS {{ "%.2f"|format(total_profit) }}</h4>
+                                <h4>GHS {{ total_profit|currency }}</h4>
                             </div>
                             <i class="bi bi-graph-up" style="font-size: 2rem; opacity: 0.7;"></i>
                         </div>
@@ -162,9 +162,9 @@
                                         <td><strong>{{ product.product_name }}</strong></td>
                                         <td><code>{{ product.sku }}</code></td>
                                         <td class="text-center">{{ product.quantity_sold }}</td>
-                                        <td class="text-end">GHS {{ "%.2f"|format(product.total_revenue) }}</td>
+                                        <td class="text-end">GHS {{ product.total_revenue|currency }}</td>
                                         <td class="text-end text-success">
-                                            <strong>GHS {{ "%.2f"|format(product.total_profit) }}</strong>
+                                            <strong>GHS {{ product.total_profit|currency }}</strong>
                                         </td>
                                         <td class="text-end">
                                             {{ "%.1f"|format((product.total_profit / product.total_revenue * 100) if product.total_revenue > 0 else 0) }}%
@@ -201,8 +201,8 @@
                                         {% endif %}
                                     </h6>
                                     <p class="mb-1"><strong>Units Sold:</strong> {{ unit.quantity_sold }}</p>
-                                    <p class="mb-1"><strong>Revenue:</strong> GHS {{ "%.2f"|format(unit.total_revenue) }}</p>
-                                    <p class="mb-0 text-success"><strong>Profit:</strong> GHS {{ "%.2f"|format(unit.total_profit) }}</p>
+                                    <p class="mb-1"><strong>Revenue:</strong> GHS {{ unit.total_revenue|currency }}</p>
+                                    <p class="mb-0 text-success"><strong>Profit:</strong> GHS {{ unit.total_profit|currency }}</p>
                                 </div>
                             </div>
                             {% endfor %}
@@ -248,7 +248,10 @@
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return 'GHS ' + value.toFixed(2);
+                                return 'GHS ' + value.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
                             }
                         }
                     }
@@ -285,7 +288,10 @@
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                return context.label + ': GHS ' + context.parsed.toFixed(2);
+                                return context.label + ': GHS ' + context.parsed.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
                             }
                         }
                     }

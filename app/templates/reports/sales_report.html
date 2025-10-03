@@ -25,7 +25,7 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-header">
-        <h5 class="mb-0">Filters</h5>
+        <h5 class="mb-0"><i class="bi bi-funnel"></i> Filters</h5>
     </div>
     <div class="card-body">
         <form method="GET" action="{{ url_for('reports.sales_reports') }}">
@@ -51,8 +51,23 @@
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-funnel"></i> Apply Filters
+                        <i class="bi bi-search"></i> Apply Filters
                     </button>
+                </div>
+            </div>
+            
+            <!-- Date Range Presets -->
+            <div class="row mt-3">
+                <div class="col-12">
+                    <label class="form-label small text-muted">Quick Filters:</label>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary" onclick="setDateRange('today')">Today</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="setDateRange('yesterday')">Yesterday</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="setDateRange('this_week')">This Week</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="setDateRange('last_week')">Last Week</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="setDateRange('this_month')">This Month</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="setDateRange('last_month')">Last Month</button>
+                    </div>
                 </div>
             </div>
         </form>
@@ -61,45 +76,65 @@
 
 <!-- Summary Statistics -->
 <div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-white bg-primary">
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-primary h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title">Total Sales</h6>
                         <h3 class="mb-0">{{ total_sales }}</h3>
+                        <small>transactions</small>
                     </div>
                     <div class="align-self-center">
-                        <i class="bi bi-receipt fs-2"></i>
+                        <i class="bi bi-receipt fs-1"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <div class="col-md-3">
-        <div class="card text-white bg-success">
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-success h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title">Total Revenue</h6>
-                        <h3 class="mb-0">GHS {{ "%.2f"|format(total_revenue) }}</h3>
+                        <h3 class="mb-0">GHS {{ total_revenue|currency }}</h3>
+                        <small>gross income</small>
                     </div>
                     <div class="align-self-center">
-                        <i class="bi bi-currency-dollar fs-2"></i>
+                        <i class="bi bi-currency-dollar fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-info h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title mb-1">Gross Profit</h6>
+                        <h3 class="mb-0">GHS {{ total_profit|currency }}</h3>
+                        <small>before expenses</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-graph-up fs-1"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <div class="col-md-3">
-        <div class="card text-white bg-info">
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-warning h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title">Average Sale</h6>
-                        <h3 class="mb-0">GHS {{ "%.2f"|format(average_sale) }}</h3>
+                        <h3 class="mb-0">GHS {{ average_sale|currency }}</h3>
+                        <small>per transaction</small>
                     </div>
                     <div class="align-self-center">
                         <i class="bi bi-calculator fs-2"></i>
@@ -108,13 +143,25 @@
             </div>
         </div>
     </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Profit Margin</h6>
+                <h4 class="mb-0">{{ "%.1f"|format((total_profit / total_revenue * 100) if total_revenue > 0 else 0) }}%</h4>
+                <small class="text-muted">Overall margin</small>
+            </div>
+        </div>
+    </div>
     
-    <div class="col-md-3">
-        <div class="card text-white bg-warning">
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="card-title">Date Range</h6>
+                        <h6 class="text-muted">Date Range</h6>
                         <h6 class="mb-0">{{ start_date }} to {{ end_date }}</h6>
                     </div>
                     <div class="align-self-center">
@@ -131,17 +178,20 @@
     <div class="col-lg-8 mb-4">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Sales Performance</h5>
+                <h5 class="mb-0">Sales Performance Over Time</h5>
                 <div class="btn-group btn-group-sm" role="group">
                     <input type="radio" class="btn-check" name="chartView" id="revenueView" autocomplete="off" checked>
                     <label class="btn btn-outline-primary" for="revenueView">Revenue</label>
                     
+                    <input type="radio" class="btn-check" name="chartView" id="profitView" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="profitView">Profit</label>
+
                     <input type="radio" class="btn-check" name="chartView" id="countView" autocomplete="off">
                     <label class="btn btn-outline-primary" for="countView">Sales Count</label>
                 </div>
             </div>
             <div class="card-body">
-                <div style="height: 400px;">
+                <div style="height: 500px;">
                     <canvas id="salesChart"></canvas>
                 </div>
             </div>
@@ -170,7 +220,7 @@
                             <!-- Products will be loaded here by JavaScript -->
                         </div>
                     {% else %}
-                        <p class="text-muted">No product data available</p>
+                        <p class="text-muted text-center">No product data available</p>
                     {% endif %}
                 </div>
             </div>
@@ -183,89 +233,177 @@
     <div class="col-lg-6 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Clerk Performance</h5>
+                <h5 class="mb-0"><i class="bi bi-people"></i> Clerk Performance</h5>
             </div>
             <div class="card-body">
                 {% if clerk_performance %}
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="table table-sm table-hover">
                             <thead>
                                 <tr>
                                     <th>Clerk</th>
-                                    <th>Sales</th>
-                                    <th>Revenue</th>
+                                    <th class="text-end">Sales</th>
+                                    <th class="text-end">Revenue</th>
+                                    <th class="text-end">Profit</th>
+                                    <th class="text-end">Avg Sale</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for clerk in clerk_performance %}
                                 <tr>
-                                    <td>{{ clerk.username }}</td>
-                                    <td>{{ clerk.total_sales }}</td>
-                                    <td>GHS {{ "%.2f"|format(clerk.total_revenue) }}</td>
+                                    <td>
+                                        <strong>{{ clerk.username }}</strong>
+                                    </td>
+                                    <td class="text-end">{{ clerk.total_sales }}</td>
+                                    <td class="text-end">GHS {{ clerk.total_revenue|currency }}</td>
+                                    <td class="text-end text-success">GHS {{ clerk.total_profit|currency }}</td>
+                                    <td class="text-end">GHS {{ (clerk.total_revenue / clerk.total_sales if clerk.total_sales > 0 else 0)|currency }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                 {% else %}
-                    <p class="text-muted">No clerk data available</p>
+                    <p class="text-muted text-center">No clerk data available</p>
                 {% endif %}
             </div>
         </div>
     </div>
-    
-    <!-- Recent Sales -->
+
+    <!-- Unit Type Performance -->
     <div class="col-lg-6 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Recent Sales</h5>
+                <h5 class="mb-0"><i class="bi bi-box"></i> Sales by Unit Type</h5>
             </div>
             <div class="card-body">
-                {% if sales %}
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                {% if unit_type_stats %}
+                    <div class="table-responsive">
                         <table class="table table-sm table-hover">
                             <thead>
                                 <tr>
-                                    <th>Invoice ID</th>
-                                    <th>Date/Time</th>
-                                    <th>Clerk</th>
-                                    <th>Total</th>
-                                    <th>Actions</th>
+                                    <th>Unit Type</th>
+                                    <th class="text-end">Quantity</th>
+                                    <th class="text-end">Revenue</th>
+                                    <th class="text-end">Profit</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for sale in sales[:20] %}
+                                {% for unit in unit_type_stats %}
                                 <tr>
-                                    <td>#{{ sale.invoice_number }}</td>
-                                    <td>{{ sale.created_at.strftime('%m/%d %H:%M') }}</td>
-                                    <td>{{ sale.clerk.username }}</td>
-                                    <td>GHS {{ "%.2f"|format(sale.total_amount) }}</td>
                                     <td>
-                                        <a href="{{ url_for('reports.detailed_sale', sale_id=sale.id) }}" 
-                                           class="btn btn-sm btn-outline-primary" target="_blank">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
+                                        <strong>
+                                            {% if unit.unit_type == 'full' %}Full Pack
+                                            {% elif unit.unit_type == 'half' %}Half Pack
+                                            {% elif unit.unit_type == 'quarter' %}Quarter Pack
+                                            {% else %}{{ unit.unit_type }}
+                                            {% endif %}
+                                        </strong>
+                                    </td>
+                                    <td class="text-end">{{ unit.total_quantity }}</td>
+                                    <td class="text-end">GHS {{ unit.total_revenue|currency }}</td>
+                                    <td class="text-end text-success">GHS {{ unit.total_profit|currency }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No unit type data available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Methods -->
+<div class="row">
+    <div class="col-lg-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-credit-card"></i> Payment Methods</h5>
+            </div>
+            <div class="card-body">
+                {% if payment_stats %}
+                    <div class="row">
+                        {% for payment in payment_stats %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">
+                                        {{ payment.payment_method.replace('_', ' ').title() }}
+                                    </h6>
+                                    <h4 class="mb-1">{{ payment.count }}</h4>
+                                    <small class="text-muted">GHS {{ payment.total_amount|currency }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No payment data available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+    
+<!-- Recent Sales -->
+<div class="row">
+    <div class="col-lg-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Sales</h5>
+            </div>
+            <div class="card-body">
+                {% if sales %}
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-sm table-hover">
+                            <thead class="sticky-top bg-white">
+                                <tr>
+                                    <th>Invoice</th>
+                                    <th>Date/Time</th>
+                                    <th>Clerk</th>
+                                    <th class="text-end">Items</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-end">Profit</th>
+                                    <th>Payment</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in sales %}
+                                <tr>
+                                    <td><strong>#{{ sale.invoice_number }}</strong></td>
+                                    <td>{{ sale.created_at.strftime('%m/%d/%Y %H:%M') }}</td>
+                                    <td>{{ sale.clerk.username }}</td>
+                                    <td class="text-end">{{ sale.sale_items|length }}</td>
+                                    <td class="text-end">GHS {{ sale.total_amount|currency }}</td>
+                                    <td class="text-end text-success">GHS {{ sale.total_profit|currency }}</td>
+                                    <td>{{ sale.payment_method.replace('_', ' ').title() }}</td>
+                                    <td>
+                                        <span class="badge bg-success">{{ sale.status.title() }}</span>
+                                    </td>
+                                    <td class="text-center">
                                         <a href="{{ url_for('pos.receipt', sale_id=sale.id) }}" 
-                                           class="btn btn-sm btn-outline-secondary" target="_blank">
+                                           class="btn btn-sm btn-outline-primary" target="_blank" 
+                                           title="View Receipt">
                                             <i class="bi bi-receipt"></i>
-                                        </a>
-                                        <a href="{{ url_for('reports.confirm_delete_sale', sale_id=sale.id) }}" 
-                                            class="btn btn-sm btn-outline-danger">
-                                            <i class="bi bi-trash"></i>
                                         </a>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
-                        {% if sales|length > 20 %}
-                            <div class="text-center">
-                                <small class="text-muted">Showing first 20 of {{ sales|length }} sales</small>
+                        {% if sales|length >= 50 %}
+                            <div class="text-center mt-3">
+                                <small class="text-muted">Showing first 50 sales. Adjust date range to see different sales.</small>
                             </div>
                         {% endif %}
                     </div>
                 {% else %}
-                    <p class="text-muted">No sales data available for the selected period</p>
+                    <p class="text-muted text-center">No sales data available for the selected period</p>
                 {% endif %}
             </div>
         </div>
@@ -276,8 +414,57 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+// Date Range Quick Filters
+function setDateRange(range) {
+    const today = new Date();
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+    
+    let startDate, endDate;
+    
+    switch(range) {
+        case 'today':
+            startDate = endDate = today;
+            break;
+        case 'yesterday':
+            startDate = endDate = new Date(today.setDate(today.getDate() - 1));
+            break;
+        case 'this_week':
+            const firstDayOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
+            startDate = firstDayOfWeek;
+            endDate = new Date();
+            break;
+        case 'last_week':
+            const lastWeekStart = new Date(today.setDate(today.getDate() - today.getDay() - 7));
+            const lastWeekEnd = new Date(today.setDate(today.getDate() - today.getDay() - 1));
+            startDate = lastWeekStart;
+            endDate = lastWeekEnd;
+            break;
+        case 'this_month':
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            endDate = new Date();
+            break;
+        case 'last_month':
+            startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+            break;
+    }
+    
+    if (startDate && endDate) {
+        startDateInput.value = startDate.toISOString().split('T')[0];
+        endDateInput.value = endDate.toISOString().split('T')[0];
+        // Auto-submit the form
+        startDateInput.form.submit();
+    }
+}
+
 // Prepare chart data
 const dailySalesData = {{ daily_sales | tojson | safe }};
+
+// Validate data
+if (!dailySalesData || dailySalesData.length === 0) {
+    console.warn('No daily sales data available for chart');
+}
 
 // Create time-based labels with proper formatting
 const chartLabels = dailySalesData.map(item => {
@@ -304,23 +491,50 @@ const chartLabels = dailySalesData.map(item => {
 });
 
 const revenueData = dailySalesData.map(item => parseFloat(item.total_revenue) || 0);
+const profitData = dailySalesData.map(item => parseFloat(item.total_profit) || 0);
 const salesCountData = dailySalesData.map(item => item.total_sales || 0);
 
 // Chart configuration
-const ctx = document.getElementById('salesChart').getContext('2d');
+const ctx = document.getElementById('salesChart');
+if (!ctx) {
+    console.error('Sales chart canvas element not found');
+}
+
 let currentChart;
 
 function createChart(type = 'revenue') {
+    if (!ctx) return;
+    
     // Destroy existing chart
     if (currentChart) {
         currentChart.destroy();
     }
     
-    const isRevenue = type === 'revenue';
-    const data = isRevenue ? revenueData : salesCountData;
-    const label = isRevenue ? 'Total Revenue (GHS)' : 'Number of Sales';
-    const backgroundColor = isRevenue ? 'rgba(54, 162, 235, 0.8)' : 'rgba(255, 99, 132, 0.8)';
-    const borderColor = isRevenue ? 'rgba(54, 162, 235, 1)' : 'rgba(255, 99, 132, 1)';
+    let data, label, backgroundColor, borderColor, title;
+    
+    switch(type) {
+        case 'revenue':
+            data = revenueData;
+            label = 'Total Revenue (GHS)';
+            backgroundColor = 'rgba(54, 162, 235, 0.8)';
+            borderColor = 'rgba(54, 162, 235, 1)';
+            title = 'Daily Revenue Performance';
+            break;
+        case 'profit':
+            data = profitData;
+            label = 'Total Profit (GHS)';
+            backgroundColor = 'rgba(75, 192, 192, 0.8)';
+            borderColor = 'rgba(75, 192, 192, 1)';
+            title = 'Daily Profit Performance';
+            break;
+        case 'count':
+            data = salesCountData;
+            label = 'Number of Sales';
+            backgroundColor = 'rgba(255, 99, 132, 0.8)';
+            borderColor = 'rgba(255, 99, 132, 1)';
+            title = 'Daily Sales Count Performance';
+            break;
+    }
     
     currentChart = new Chart(ctx, {
         type: 'bar',
@@ -346,7 +560,7 @@ function createChart(type = 'revenue') {
                 },
                 title: {
                     display: true,
-                    text: isRevenue ? 'Daily Revenue Performance' : 'Daily Sales Count Performance',
+                    text: title,
                     font: {
                         size: 16
                     }
@@ -357,10 +571,13 @@ function createChart(type = 'revenue') {
                     bodyColor: 'white',
                     callbacks: {
                         label: function(context) {
-                            if (isRevenue) {
-                                return 'Revenue: GHS ' + context.parsed.y.toFixed(2);
-                            } else {
+                            if (type === 'count') {
                                 return 'Sales: ' + context.parsed.y + ' transactions';
+                            } else {
+                                return label + ': GHS ' + context.parsed.y.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
                             }
                         }
                     }
@@ -384,17 +601,17 @@ function createChart(type = 'revenue') {
                     beginAtZero: true,
                     title: {
                         display: true,
-                        text: isRevenue ? 'Amount (GHS)' : 'Number of Sales',
+                        text: type === 'count' ? 'Number of Sales' : 'Amount (GHS)',
                         font: {
                             size: 14
                         }
                     },
                     ticks: {
                         callback: function(value) {
-                            if (isRevenue) {
-                                return 'GHS ' + value.toFixed(0);
-                            } else {
+                            if (type === 'count') {
                                 return value;
+                            } else {
+                                return 'GHS ' + value.toFixed(0);
                             }
                         }
                     }
@@ -410,21 +627,41 @@ function createChart(type = 'revenue') {
 
 // Initialize chart
 document.addEventListener('DOMContentLoaded', function() {
-    createChart('revenue');
-    initializeProductsPagination();
-    
-    // Chart view toggle event listeners
-    document.getElementById('revenueView').addEventListener('change', function() {
-        if (this.checked) {
-            createChart('revenue');
+    try {
+        createChart('revenue');
+        initializeProductsPagination();
+        
+        // Chart view toggle event listeners
+        const revenueViewBtn = document.getElementById('revenueView');
+        const profitViewBtn = document.getElementById('profitView');
+        const countViewBtn = document.getElementById('countView');
+        
+        if (revenueViewBtn) {
+            revenueViewBtn.addEventListener('change', function() {
+                if (this.checked) {
+                    createChart('revenue');
+                }
+            });
         }
-    });
-    
-    document.getElementById('countView').addEventListener('change', function() {
-        if (this.checked) {
-            createChart('count');
+        
+        if (profitViewBtn) {
+            profitViewBtn.addEventListener('change', function() {
+                if (this.checked) {
+                    createChart('profit');
+                }
+            });
         }
-    });
+        
+        if (countViewBtn) {
+            countViewBtn.addEventListener('change', function() {
+                if (this.checked) {
+                    createChart('count');
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error initializing charts:', error);
+    }
 });
 
 // Products Pagination
@@ -454,7 +691,8 @@ function displayProductsPage(page) {
                 <small class="text-muted">${product.total_quantity} sold</small>
             </div>
             <div class="text-end">
-                <strong>GHS ${parseFloat(product.total_revenue).toFixed(2)}</strong>
+                <strong>GHS ${parseFloat(product.total_revenue).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong><br>
+                <small class="text-success">Profit: GHS ${parseFloat(product.total_profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</small>
             </div>
         </div>
         ${index < pageProducts.length - 1 ? '<hr class="my-2">' : ''}
@@ -509,10 +747,12 @@ function updateProductsPaginationControls() {
 const printStyles = `
 <style>
 @media print {
-    .btn, .card-header button, .navbar { display: none !important; }
+    .btn, .card-header button, .navbar, .pagination-controls { display: none !important; }
     .card { border: 1px solid #000 !important; page-break-inside: avoid; }
     body { font-size: 12px; }
     .container-fluid { margin: 0; padding: 0; }
+    h2, h5 { font-size: 14px; }
+    .table { font-size: 10px; }
 }
 </style>
 `;

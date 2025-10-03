@@ -1,233 +1,261 @@
 {% extends "base.html" %}
 
-{% block title %}{{ title }} - MY LORD ENTERPRISE POS SYSTEM{% endblock %}
+{% block title %}{{ title }} - POS System{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h4 class="card-title mb-0">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
                     <i class="bi bi-box-seam"></i> {{ title }}
                 </h4>
+                <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Back to Products
+                </a>
             </div>
             <div class="card-body">
-                <form method="POST">
+                <form method="POST" enctype="multipart/form-data" novalidate>
                     {{ form.hidden_tag() }}
                     
-                    <!-- Basic Product Information -->
                     <div class="row">
+                        <!-- Left Column: Basic Info -->
                         <div class="col-md-6">
+                            <h5 class="mb-3">Basic Information</h5>
+                            
                             <div class="mb-3">
-                                <label for="{{ form.sku.id }}" class="form-label">
-                                    <strong>{{ form.sku.label.text }}</strong>
-                                    {% if not product %}
-                                        <small class="text-muted">(Auto-generated)</small>
-                                    {% endif %}
-                                </label>
-                                {{ form.sku(class="form-control", readonly=true) }}
-                                {% if form.sku.errors %}
-                                    <div class="text-danger mt-1">
-                                        {% for error in form.sku.errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
+                                {{ form.sku.label(class="form-label") }}
+                                {{ form.sku(class="form-control" + (" is-invalid" if form.sku.errors else "")) }}
+                                {% for error in form.sku.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                                <div class="form-text">Auto-generated based on category</div>
                             </div>
-                        </div>
-                        <div class="col-md-6">
+                            
                             <div class="mb-3">
-                                <label for="{{ form.category.id }}" class="form-label">
-                                    <strong>{{ form.category.label.text }}</strong>
-                                </label>
-                                {{ form.category(class="form-select") }}
-                                {% if form.category.errors %}
-                                    <div class="text-danger mt-1">
-                                        {% for error in form.category.errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                                <small class="form-text text-muted">Changing category will regenerate the SKU</small>
+                                {{ form.category.label(class="form-label") }}
+                                {{ form.category(class="form-select" + (" is-invalid" if form.category.errors else "")) }}
+                                {% for error in form.category.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="{{ form.name.id }}" class="form-label">
-                            <strong>{{ form.name.label.text }}</strong>
-                        </label>
-                        {{ form.name(class="form-control") }}
-                        {% if form.name.errors %}
-                            <div class="text-danger mt-1">
+                            
+                            <div class="mb-3">
+                                {{ form.name.label(class="form-label") }}
+                                {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
                                 {% for error in form.name.errors %}
-                                    <small>{{ error }}</small>
+                                    <div class="invalid-feedback">{{ error }}</div>
                                 {% endfor %}
                             </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="{{ form.description.id }}" class="form-label">
-                            {{ form.description.label.text }}
-                        </label>
-                        {{ form.description(class="form-control", rows="3") }}
-                        {% if form.description.errors %}
-                            <div class="text-danger mt-1">
+                            
+                            <div class="mb-3">
+                                {{ form.description.label(class="form-label") }}
+                                {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else "")) }}
                                 {% for error in form.description.errors %}
-                                    <small>{{ error }}</small>
+                                    <div class="invalid-feedback">{{ error }}</div>
                                 {% endfor %}
                             </div>
-                        {% endif %}
+                        </div>
+                        
+                        <!-- Right Column: Image -->
+                        <div class="col-md-6">
+                            <h5 class="mb-3">Product Image</h5>
+                            
+                            <!-- Current Image Display -->
+                            <div class="mb-3 text-center">
+                                {% if product and product.has_image %}
+                                <img src="{{ product.image_url }}" class="img-thumbnail" style="max-height: 200px;" alt="{{ product.name }}">
+                                <p class="text-muted small mt-2">Current image</p>
+                                {% else %}
+                                <div class="border rounded p-4 bg-light">
+                                    <i class="bi bi-image text-muted" style="font-size: 4rem;"></i>
+                                    <p class="text-muted mt-2">No image uploaded</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Image Upload -->
+                            <div class="mb-3">
+                                {{ form.product_image.label(class="form-label") }}
+                                {{ form.product_image(class="form-control" + (" is-invalid" if form.product_image.errors else ""), accept="image/*") }}
+                                {% for error in form.product_image.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                                <div class="form-text">
+                                    {% if product and product.has_image %}
+                                    Upload a new image to replace the current one
+                                    {% else %}
+                                    Upload product image (PNG, JPG, JPEG, GIF, WEBP - Max 10MB)
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Image Preview -->
+                            <div id="imagePreview" class="mb-3" style="display: none;">
+                                <img id="previewImg" class="img-thumbnail" style="max-height: 150px;" alt="Preview">
+                                <p class="text-muted small mt-2">New image preview</p>
+                            </div>
+                        </div>
                     </div>
-
+                    
+                    <hr class="my-4">
+                    
                     <!-- Pricing Section -->
-                    <hr>
-                    <h5 class="text-primary mb-3">
-                        <i class="bi bi-currency-dollar"></i> Pricing Information
-                    </h5>
-
+                    <h5 class="mb-3">Pricing & Stock</h5>
                     <div class="row">
                         <div class="col-md-3">
                             <div class="mb-3">
-                                <label for="{{ form.purchase_price.id }}" class="form-label">
-                                    <strong>{{ form.purchase_price.label.text }}</strong>
-                                    <small class="text-muted">(Cost per full pack)</small>
-                                </label>
+                                {{ form.purchase_price.label(class="form-label") }}
                                 <div class="input-group">
                                     <span class="input-group-text">GHS</span>
-                                    {{ form.purchase_price(class="form-control", step="0.01", id="purchasePrice") }}
+                                    {{ form.purchase_price(class="form-control" + (" is-invalid" if form.purchase_price.errors else "")) }}
+                                    {% for error in form.purchase_price.errors %}
+                                        <div class="invalid-feedback">{{ error }}</div>
+                                    {% endfor %}
                                 </div>
-                                {% if form.purchase_price.errors %}
-                                    <div class="text-danger mt-1">
-                                        {% for error in form.purchase_price.errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
+                                <div class="form-text">Cost price per pack</div>
                             </div>
                         </div>
+                        
                         <div class="col-md-3">
                             <div class="mb-3">
-                                <label for="{{ form.full_price.id }}" class="form-label">
-                                    <strong>{{ form.full_price.label.text }}</strong>
-                                    <span class="badge bg-success">Full Pack</span>
-                                </label>
+                                {{ form.full_price.label(class="form-label") }}
                                 <div class="input-group">
                                     <span class="input-group-text">GHS</span>
-                                    {{ form.full_price(class="form-control", step="0.01", id="fullPrice") }}
+                                    {{ form.full_price(class="form-control" + (" is-invalid" if form.full_price.errors else "")) }}
+                                    {% for error in form.full_price.errors %}
+                                        <div class="invalid-feedback">{{ error }}</div>
+                                    {% endfor %}
                                 </div>
-                                <div class="mt-1">
-                                    <small class="text-primary" id="fullProfit">Profit: GHS 0.00 (0%)</small>
-                                </div>
-                                {% if form.full_price.errors %}
-                                    <div class="text-danger mt-1">
-                                        {% for error in form.full_price.errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
+                                <div class="form-text">Full pack selling price</div>
                             </div>
                         </div>
+                        
                         <div class="col-md-3">
                             <div class="mb-3">
-                                <label for="{{ form.half_price.id }}" class="form-label">
-                                    <strong>{{ form.half_price.label.text }}</strong>
-                                    <span class="badge bg-warning">Half Pack</span>
-                                </label>
+                                {{ form.half_price.label(class="form-label") }}
                                 <div class="input-group">
                                     <span class="input-group-text">GHS</span>
-                                    {{ form.half_price(class="form-control", step="0.01", id="halfPrice") }}
+                                    {{ form.half_price(class="form-control" + (" is-invalid" if form.half_price.errors else "")) }}
+                                    {% for error in form.half_price.errors %}
+                                        <div class="invalid-feedback">{{ error }}</div>
+                                    {% endfor %}
                                 </div>
-                                <div class="mt-1">
-                                    <small class="text-primary" id="halfProfit">Profit: GHS 0.00</small>
-                                </div>
-                                {% if form.half_price.errors %}
-                                    <div class="text-danger mt-1">
-                                        {% for error in form.half_price.errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                                <small class="form-text text-muted">Leave blank for auto-calculation (50% of full price)</small>
+                                <div class="form-text">Auto-calculated if blank</div>
                             </div>
                         </div>
-                        <!--<div class="col-md-3">
-                            <div class="mb-3">
-                                <label for="{{ form.quarter_price.id }}" class="form-label">
-                                    <strong>{{ form.quarter_price.label.text }}</strong>
-                                    <span class="badge bg-warning">quarter Pack</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">GHS</span>
-                                    {{ form.quarter_price(class="form-control", step="0.01", id="quarterPrice") }}
-                                </div>
-                                <div class="mt-1">
-                                    <small class="text-primary" id="quarterProfit">Profit: GHS 0.00</small>
-                                </div>
-                                {% if form.quarter_price.errors %}
-                                    <div class="text-danger mt-1">
-                                        {% for error in form.quarter_price.errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                                <small class="form-text text-muted">Leave blank for auto-calculation (25% of full price)</small>
-                            </div>
-                        </div>-->
+                        
                         <div class="col-md-3">
                             <div class="mb-3">
-                                <label for="{{ form.quantity.id }}" class="form-label">
-                                    <strong>{{ form.quantity.label.text }}</strong>
-                                </label>
-                                {{ form.quantity(class="form-control") }}
-                                {% if form.quantity.errors %}
-                                    <div class="text-danger mt-1">
-                                        {% for error in form.quantity.errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
+                                {{ form.quantity.label(class="form-label") }}
+                                {{ form.quantity(class="form-control" + (" is-invalid" if form.quantity.errors else "")) }}
+                                {% for error in form.quantity.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                                <div class="form-text">Number of packs in stock</div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Calculated Pricing Display -->
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Retail Unit Section -->
+                    <h5 class="mb-3">
+                        <i class="bi bi-basket"></i> Retail Unit Configuration
+                        <small class="text-muted">(For selling individual items)</small>
+                    </h5>
+                    
                     <div class="alert alert-info">
-                        <h6 class="alert-heading">
-                            <i class="bi bi-calculator"></i> Fractional Pricing Preview
-                        </h6>
-                        <p class="mb-2">Current pricing breakdown:</p>
-                        <div class="row text-center">
-                            <div class="col-md-4">
-                                <div class="border-end">
-                                    <strong class="text-success">Full Pack</strong><br>
-                                    <span id="fullPriceDisplay">GHS 0.00</span><br>
-                                    <small class="text-primary" id="fullProfitDisplay">Profit: GHS 0.00</small>
+                        <i class="bi bi-info-circle"></i> 
+                        <strong>Retail Selling:</strong> Configure how many individual units are in each pack and the price per unit.
+                        This allows you to sell items both wholesale (by pack) and retail (by single unit).
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.units_per_pack.label(class="form-label") }}
+                                {{ form.units_per_pack(class="form-control" + (" is-invalid" if form.units_per_pack.errors else ""), id="unitsPerPack") }}
+                                {% for error in form.units_per_pack.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                                <div class="form-text">
+                                    How many units in one full pack? (e.g., 24 bottles in a carton)
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="border-end">
-                                    <strong class="text-warning">Half Pack</strong><br>
-                                    <span id="halfPriceDisplay">GHS 0.00</span><br>
-                                    <small class="text-primary" id="halfProfitDisplay">Profit: GHS 0.00</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.unit_price.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">GHS</span>
+                                    {{ form.unit_price(class="form-control" + (" is-invalid" if form.unit_price.errors else ""), id="unitPrice") }}
+                                    {% for error in form.unit_price.errors %}
+                                        <div class="invalid-feedback">{{ error }}</div>
+                                    {% endfor %}
+                                    <button class="btn btn-outline-secondary" type="button" id="autoCalcBtn">
+                                        <i class="bi bi-calculator"></i> Auto
+                                    </button>
                                 </div>
-                            </div>
-                            <div class="col-md-4">
-                                <strong class="text-info">Quarter Pack (25%)</strong><br>
-                                <span id="quarterPriceDisplay">GHS 0.00</span><br>
-                                <small class="text-primary" id="quarterProfitDisplay">Profit: GHS 0.00</small>
+                                <div class="form-text">
+                                    Price per single unit. Leave blank to auto-calculate from full price.
+                                    <span id="calcHint" class="text-primary"></span>
+                                </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Form Actions -->
-                    <hr>
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('products.list_products') }}" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left"></i> Back to Products
-                        </a>
-                        {{ form.submit(class="btn btn-success") }}
+                    
+                    <!-- Preview Card -->
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">Pricing Preview</h6>
+                            <div class="row text-center">
+                                <div class="col-3">
+                                    <small class="text-muted d-block">Full Pack</small>
+                                    <strong class="text-success" id="previewFull">GHS 0.00</strong>
+                                </div>
+                                <div class="col-3">
+                                    <small class="text-muted d-block">Half Pack</small>
+                                    <strong class="text-success" id="previewHalf">GHS 0.00</strong>
+                                </div>
+                                <div class="col-3">
+                                    <small class="text-muted d-block">Quarter Pack</small>
+                                    <strong class="text-success" id="previewQuarter">GHS 0.00</strong>
+                                </div>
+                                <div class="col-3">
+                                    <small class="text-muted d-block">Single Unit</small>
+                                    <strong class="text-success" id="previewUnit">GHS 0.00</strong>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row text-center">
+                                <div class="col-12">
+                                    <small class="text-muted">Total Stock: </small>
+                                    <strong id="totalUnits">0 units</strong>
+                                    <small class="text-muted"> in </small>
+                                    <strong id="totalPacks">0 packs</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 d-flex justify-content-between">
+                        <div>
+                            {% if product %}
+                            <a href="{{ url_for('products.delete_product', product_id=product.id) }}" 
+                               class="btn btn-danger"
+                               onclick="return confirm('Are you sure you want to delete this product?')">
+                                <i class="bi bi-trash"></i> Delete Product
+                            </a>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <a href="{{ url_for('products.list_products') }}" class="btn btn-secondary me-2">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            {{ form.submit(class="btn btn-success") }}
+                        </div>
                     </div>
                 </form>
             </div>
@@ -239,129 +267,92 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const purchasePriceInput = document.getElementById('purchasePrice');
-    const fullPriceInput = document.getElementById('fullPrice');
-    const halfPriceInput = document.getElementById('halfPrice');
-
-    function calculatePricing() {
-        const purchasePrice = parseFloat(purchasePriceInput.value) || 0;
-        const fullPrice = parseFloat(fullPriceInput.value) || 0;
-        let halfPrice = parseFloat(halfPriceInput.value) || 0;
-
-        // Auto-calculate half price if not manually set
-        if (!halfPriceInput.value || halfPrice === 0) {
-            halfPrice = fullPrice * 0.5;
-            halfPriceInput.value = halfPrice.toFixed(2);
-        }
-
-        // Calculate fractional prices
-        const quarterPrice = fullPrice * 0.25;
-
-        // Calculate profits
-        const fullProfit = fullPrice - purchasePrice;
-        const halfProfit = halfPrice - (purchasePrice * 0.5);
-        const quarterProfit = quarterPrice - (purchasePrice * 0.25);
-
-        // Calculate profit percentages
-        const fullProfitPercent = purchasePrice > 0 ? (fullProfit / purchasePrice * 100) : 0;
-
-        // Update individual profit displays
-        document.getElementById('fullProfit').textContent = 
-            `Profit: GHS ${fullProfit.toFixed(2)} (${fullProfitPercent.toFixed(1)}%)`;
-        document.getElementById('halfProfit').textContent = 
-            `Profit: GHS ${halfProfit.toFixed(2)}`;
-
-        // Update display panels
-        document.getElementById('fullPriceDisplay').textContent = `GHS ${fullPrice.toFixed(2)}`;
-        document.getElementById('halfPriceDisplay').textContent = `GHS ${halfPrice.toFixed(2)}`;
-        document.getElementById('quarterPriceDisplay').textContent = `GHS ${quarterPrice.toFixed(2)}`;
-
-        document.getElementById('fullProfitDisplay').textContent = `Profit: GHS ${fullProfit.toFixed(2)}`;
-        document.getElementById('halfProfitDisplay').textContent = `Profit: GHS ${halfProfit.toFixed(2)}`;
-        document.getElementById('quarterProfitDisplay').textContent = `Profit: GHS ${quarterProfit.toFixed(2)}`;
-
-        // Color code based on profitability
-        updateProfitColor('fullProfit', fullProfit);
-        updateProfitColor('halfProfit', halfProfit);
-        updateProfitColor('fullProfitDisplay', fullProfit);
-        updateProfitColor('halfProfitDisplay', halfProfit);
-        updateProfitColor('quarterProfitDisplay', quarterProfit);
-    }
-
-    function updateProfitColor(elementId, profit) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.className = element.className.replace(/text-\w+/, '');
-            if (profit > 0) {
-                element.className += ' text-success';
-            } else if (profit < 0) {
-                element.className += ' text-danger';
-            } else {
-                element.className += ' text-muted';
-            }
-        }
-    }
-
-    // Auto-suggest prices
-    function suggestPrices() {
-        const purchasePrice = parseFloat(purchasePriceInput.value) || 0;
-        if (purchasePrice > 0) {
-            if (!fullPriceInput.value) {
-                // Suggest 30% markup for full pack
-                fullPriceInput.value = (purchasePrice * 1.3).toFixed(2);
-            }
-            calculatePricing();
-        }
-    }
-
-    // Auto-calculate half price when full price changes
-    function autoCalculateHalfPrice() {
-        const fullPrice = parseFloat(fullPriceInput.value) || 0;
-        if (fullPrice > 0 && !halfPriceInput.value) {
-            halfPriceInput.value = (fullPrice * 0.5).toFixed(2);
-        }
-        calculatePricing();
-    }
-
-    // Bind events
-    if (purchasePriceInput) {
-        purchasePriceInput.addEventListener('input', calculatePricing);
-        purchasePriceInput.addEventListener('blur', suggestPrices);
-    }
+    // Image preview functionality
+    const imageInput = document.getElementById('product_image');
+    const imagePreview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
     
-    if (fullPriceInput) {
-        fullPriceInput.addEventListener('input', autoCalculateHalfPrice);
-    }
-
-    if (halfPriceInput) {
-        halfPriceInput.addEventListener('input', calculatePricing);
-    }
-
-    // Initial calculation
-    calculatePricing();
-
-    // Form validation
-    const form = document.querySelector('form');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            const purchasePrice = parseFloat(purchasePriceInput.value) || 0;
-            const fullPrice = parseFloat(fullPriceInput.value) || 0;
-            const halfPrice = parseFloat(halfPriceInput.value) || 0;
-
-            if (fullPrice <= purchasePrice) {
-                e.preventDefault();
-                alert('Full pack selling price must be greater than purchase price.');
-                fullPriceInput.focus();
-                return;
-            }
-
-            if (halfPrice && halfPrice >= fullPrice) {
-                e.preventDefault();
-                alert('Half price must be less than full price.');
-                halfPriceInput.focus();
-                return;
+    if (imageInput) {
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Check file size (10MB limit)
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('Image file is too large! Maximum size is 2MB.');
+                    imageInput.value = '';
+                    imagePreview.style.display = 'none';
+                    return;
+                }
+                
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                imagePreview.style.display = 'none';
             }
         });
+    }
+    
+    // Pricing calculations
+    const fullPriceInput = document.getElementById('full_price');
+    const halfPriceInput = document.getElementById('half_price');
+    const unitsPerPackInput = document.getElementById('unitsPerPack');
+    const unitPriceInput = document.getElementById('unitPrice');
+    const quantityInput = document.getElementById('quantity');
+    const autoCalcBtn = document.getElementById('autoCalcBtn');
+    
+    function updatePreviews() {
+        const fullPrice = parseFloat(fullPriceInput.value) || 0;
+        const halfPrice = parseFloat(halfPriceInput.value) || (fullPrice / 2);
+        const unitsPerPack = parseInt(unitsPerPackInput.value) || 1;
+        const unitPrice = parseFloat(unitPriceInput.value) || (fullPrice / unitsPerPack);
+        const quantity = parseInt(quantityInput.value) || 0;
+        
+        // Update preview cards
+        document.getElementById('previewFull').textContent = `GHS ${fullPrice.toFixed(2)}`;
+        document.getElementById('previewHalf').textContent = `GHS ${halfPrice.toFixed(2)}`;
+        document.getElementById('previewQuarter').textContent = `GHS ${(fullPrice / 4).toFixed(2)}`;
+        document.getElementById('previewUnit').textContent = `GHS ${unitPrice.toFixed(2)}`;
+        
+        // Update stock preview
+        const totalUnits = quantity * unitsPerPack;
+        document.getElementById('totalUnits').textContent = `${totalUnits} units`;
+        document.getElementById('totalPacks').textContent = `${quantity} packs`;
+        
+        // Update hint
+        const autoCalc = (fullPrice / unitsPerPack).toFixed(2);
+        document.getElementById('calcHint').textContent = `(Auto: GHS ${autoCalc})`;
+    }
+    
+    // Auto-calculate button
+    if (autoCalcBtn) {
+        autoCalcBtn.addEventListener('click', function() {
+            const fullPrice = parseFloat(fullPriceInput.value) || 0;
+            const unitsPerPack = parseInt(unitsPerPackInput.value) || 1;
+            const calculated = fullPrice / unitsPerPack;
+            unitPriceInput.value = calculated.toFixed(2);
+            updatePreviews();
+        });
+    }
+    
+    // Update previews on input change
+    [fullPriceInput, halfPriceInput, unitsPerPackInput, unitPriceInput, quantityInput].forEach(input => {
+        if (input) {
+            input.addEventListener('input', updatePreviews);
+        }
+    });
+    
+    // Initial preview update
+    updatePreviews();
+    
+    // Auto-focus on name field
+    const nameInput = document.getElementById('name');
+    if (nameInput && !nameInput.value) {
+        nameInput.focus();
     }
 });
 </script>

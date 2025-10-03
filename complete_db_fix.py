@@ -1,90 +1,70 @@
-# complete_db_fix.py
-import sqlite3
-import os
-from pathlib import Path
+# Create this file as: migrations/add_retail_units.py
+# Run it once to update your database
 
-def find_database():
-    """Find the database file"""
-    # We know it's at instance/pos.db
-    db_path = 'instance/pos.db'
+from app import db, create_app
+from app.models import Product
+from decimal import Decimal
+
+def migrate_database():
+    """Add retail unit fields to existing products"""
+    app = create_app()
     
-    if os.path.exists(db_path):
-        print(f"Found database at: {db_path}")
-        return db_path
-    else:
-        print(f"Database not found at expected location: {db_path}")
-        return None
+    with app.app_context():
+        print("Starting database migration...")
+        
+        # Add columns to database (if using SQLAlchemy migrations, this would be in alembic)
+        # For SQLite, you might need to add columns manually or use ALTER TABLE
+        
+        try:
+            # Check if columns exist
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            columns = [col['name'] for col in inspector.get_columns('product')]
+            
+            if 'units_per_pack' not in columns:
+                print("Adding units_per_pack column...")
+                db.session.execute('ALTER TABLE product ADD COLUMN units_per_pack INTEGER DEFAULT 1 NOT NULL')
+            
+            if 'unit_price' not in columns:
+                print("Adding unit_price column...")
+                db.session.execute('ALTER TABLE product ADD COLUMN unit_price NUMERIC(10, 2)')
+            
+            if 'image_filename' not in columns:
+                print("Adding image_filename column...")
+                db.session.execute('ALTER TABLE product ADD COLUMN image_filename VARCHAR(255)')
+            
+            if 'image_path' not in columns:
+                print("Adding image_path column...")
+                db.session.execute('ALTER TABLE product ADD COLUMN image_path VARCHAR(500)')
+            
+            db.session.commit()
+            print("Database schema updated successfully!")
+            
+            # Update existing products with default values
+            print("\nUpdating existing products...")
+            products = Product.query.all()
+            
+            for product in products:
+                # Set default units_per_pack if not set
+                if not hasattr(product, 'units_per_pack') or product.units_per_pack is None:
+                    product.units_per_pack = 1
+                
+                # Calculate unit_price if not set
+                if not hasattr(product, 'unit_price') or product.unit_price is None:
+                    if product.full_price and product.units_per_pack:
+                        product.unit_price = product.full_price / Decimal(str(product.units_per_pack))
+                    else:
+                        product.unit_price = product.full_price
+                
+                print(f"Updated: {product.sku} - {product.name} (Units/pack: {product.units_per_pack}, Unit price: {product.unit_price})")
+            
+            db.session.commit()
+            print(f"\nMigration completed! Updated {len(products)} products.")
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error during migration: {str(e)}")
+            raise
 
-def fix_database():
-    db_path = find_database()
-    if not db_path:
-        print("No database found. Please check your database location.")
-        return False
-    
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Check current table structure
-        print("Checking current sale table structure...")
-        cursor.execute("PRAGMA table_info(sale)")
-        columns = cursor.fetchall()
-        column_names = [col[1] for col in columns]
-        
-        print(f"Current columns: {column_names}")
-        
-        if 'total_profit' not in column_names:
-            print("Adding total_profit column...")
-            cursor.execute("""
-                ALTER TABLE sale 
-                ADD COLUMN total_profit NUMERIC(10, 2) NOT NULL DEFAULT 0.00
-            """)
-            print("✓ total_profit column added")
-        else:
-            print("✓ total_profit column already exists")
-        
-        # Update existing records
-        print("Updating existing sales with calculated profits...")
-        cursor.execute("""
-            UPDATE sale 
-            SET total_profit = (
-                SELECT COALESCE(SUM(
-                    (sale_item.price_at_sale - sale_item.cost_at_sale) * sale_item.quantity
-                ), 0.0)
-                FROM sale_item 
-                WHERE sale_item.sale_id = sale.id
-            )
-            WHERE total_profit = 0.00 OR total_profit IS NULL
-        """)
-        
-        rows_updated = cursor.rowcount
-        print(f"✓ Updated {rows_updated} sales records")
-        
-        # Verify the fix
-        cursor.execute("SELECT COUNT(*) FROM sale WHERE total_profit IS NOT NULL")
-        count = cursor.fetchone()[0]
-        print(f"✓ {count} sales now have profit data")
-        
-        conn.commit()
-        conn.close()
-        
-        print("\n🎉 Database fix completed successfully!")
-        print("You can now run your Flask application.")
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error fixing database: {e}")
-        return False
-
-if __name__ == "__main__":
-    print("=== POS Database Fix ===")
-    success = fix_database()
-    if success:
-        print("\nNext steps:")
-        print("1. Run your Flask application")
-        print("2. Test the POS system")
-        print("3. If you want clean migrations later, delete the 'migrations' folder and run 'flask db init'")
-    else:
-        print("\nManual steps needed:")
-        print("1. Locate your .db file")
-        print("2. Run this script from the correct directory")
+if __name__ == '__main__':
+    migrate_database()

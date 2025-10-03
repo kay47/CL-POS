@@ -1,17 +1,16 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response, current_app, session
 from flask_login import login_required, current_user
-from app.models import Product, Sale, SaleItem
+from app.models import Product, Sale, SaleItem, Expense
 from app.decorators import manager_required, role_required
 from app import db
 from decimal import Decimal
 from app.forms import SaleStatusForm
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import io
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
-from sqlalchemy import text  # Add this import at the top of pos.py
-
+from sqlalchemy import func, and_, text
 
 bp = Blueprint('pos', __name__)
 
@@ -23,7 +22,7 @@ def pos_page():
     # Check if we're continuing a sale
     continue_sale_id = session.get('continue_sale_id')
     if continue_sale_id:
-        session.pop('continue_sale_id', None)  # Remove from session after use
+        session.pop('continue_sale_id', None)
         return render_template('pos/pos.html', products=products, continue_sale_id=continue_sale_id)
     
     return render_template('pos/pos.html', products=products)
@@ -31,13 +30,12 @@ def pos_page():
 @bp.route('/preview', methods=['POST'])
 @login_required
 def checkout_preview():
-    """Show preview of items before completing the sale"""
+    """Show preview of items before completing the sale - includes retail units"""
     try:
         items = request.json.get('items', [])
         if not items:
             return jsonify({'error': 'No items in cart'}), 400
         
-        # Validate items and calculate totals
         preview_items = []
         total = Decimal('0.00')
         total_profit = Decimal('0.00')
@@ -51,15 +49,24 @@ def checkout_preview():
             if not product:
                 return jsonify({'error': f'Product not found'}), 400
             
-            if product.quantity < quantity:
-                return jsonify({'error': f'Insufficient stock for {product.name}. Available: {product.quantity}'}), 400
+            # Calculate inventory needed using the new method
+            inventory_needed = product.calculate_inventory_deduction(quantity, unit_type)
             
-            # Get price based on unit type
+            if product.quantity < inventory_needed:
+                if unit_type == 'unit':
+                    return jsonify({
+                        'error': f'Insufficient stock for {product.name}. '
+                                f'Need {quantity} units, have {int(product.total_units_available)} units available'
+                    }), 400
+                else:
+                    return jsonify({
+                        'error': f'Insufficient stock for {product.name}. Available: {product.quantity}'
+                    }), 400
+            
             price = product.get_price_for_unit(unit_type)
             line_total = Decimal(str(price)) * quantity
             total += line_total
             
-            # Calculate profit for this line
             line_profit = Decimal(str(product.get_profit_for_unit(unit_type))) * quantity
             total_profit += line_profit
             
@@ -72,7 +79,8 @@ def checkout_preview():
                 'quantity': quantity,
                 'line_total': float(line_total),
                 'line_profit': float(line_profit),
-                'available_stock': product.quantity
+                'available_stock': float(product.quantity),
+                'available_units': int(product.total_units_available) if unit_type == 'unit' else None
             })
         
         return jsonify({
@@ -89,46 +97,119 @@ def checkout_preview():
 @bp.route('/checkout', methods=['POST'])
 @login_required
 def checkout():
-    """Complete the sale with fractional pricing and payment processing"""
+    """Complete the sale with fractional pricing and retail units support"""
     try:
         data = request.json
         items = data.get('items', [])
         sale_status = data.get('status', 'completed')
         payment_method = data.get('payment_method', 'cash')
-        amount_paid = Decimal(str(data.get('amount_paid', 0)))
-        change_given = Decimal(str(data.get('change_given', 0)))
+        
+        # Ensure amount_paid is properly converted to Decimal
+        try:
+            amount_paid = Decimal(str(data.get('amount_paid', 0)))
+        except (ValueError, TypeError):
+            amount_paid = Decimal('0')
+            
+        try:
+            change_given = Decimal(str(data.get('change_given', 0)))
+        except (ValueError, TypeError):
+            change_given = Decimal('0')
         
         if not items:
             return jsonify({'error': 'No items in cart'}), 400
         
-        # Validate status
         if sale_status not in ['completed', 'pending']:
             sale_status = 'completed'
             
-        # Validate payment method
         if payment_method not in ['cash', 'card', 'mobile_money', 'bank_transfer']:
             payment_method = 'cash'
 
-        # Get continuing sale id from session
         continuing_sale_id = session.get('continue_sale_id')
 
-        # Handle continuing sale vs new sale
+        # STEP 1: Calculate total and validate stock FIRST (before any database changes)
+        total = Decimal('0.00')
+        total_profit = Decimal('0.00')
+        validated_items = []
+        
+        for item in items:
+            product_id = int(item['product_id'])
+            quantity = int(item['quantity'])
+            unit_type = item.get('unit_type', 'full')
+            
+            product = Product.query.get(product_id)
+            if not product:
+                raise ValueError(f'Product not found')
+            
+            # Calculate inventory deduction
+            inventory_deduction = product.calculate_inventory_deduction(quantity, unit_type)
+            
+            # Check if there's enough inventory
+            if product.quantity < inventory_deduction:
+                if unit_type == 'unit':
+                    raise ValueError(
+                        f'Insufficient stock for {product.name}. '
+                        f'Need {quantity} units ({float(inventory_deduction):.2f} packs), '
+                        f'have {float(product.quantity * product.units_per_pack):.0f} units '
+                        f'({float(product.quantity):.2f} packs)'
+                    )
+                else:
+                    raise ValueError(
+                        f'Insufficient stock for {product.name}. '
+                        f'Need {inventory_deduction} packs, have {product.quantity}'
+                    )
+            
+            # Get price and cost basis
+            price = product.get_price_for_unit(unit_type)
+            
+            if unit_type == 'unit':
+                cost_basis = product.purchase_price / Decimal(str(product.units_per_pack))
+            elif unit_type == 'half':
+                cost_basis = product.purchase_price / Decimal('2')
+            elif unit_type == 'quarter':
+                cost_basis = product.purchase_price / Decimal('4')
+            else:  # full
+                cost_basis = product.purchase_price
+            
+            line_total = Decimal(str(price)) * quantity
+            line_profit = (Decimal(str(price)) - Decimal(str(cost_basis))) * quantity
+            
+            total += line_total
+            total_profit += line_profit
+            
+            # Store validated item data for later processing
+            validated_items.append({
+                'product': product,
+                'product_id': product_id,
+                'quantity': quantity,
+                'unit_type': unit_type,
+                'price': price,
+                'cost_basis': cost_basis,
+                'inventory_deduction': inventory_deduction
+            })
+        
+        # STEP 2: Validate payment amount for completed sales BEFORE any changes
+        if sale_status == 'completed' and amount_paid < total:
+            return jsonify({
+                'error': f'Payment amount (GHS {float(amount_paid):.2f}) is less than total amount (GHS {float(total):.2f})'
+            }), 400
+        
+        # STEP 3: Now proceed with sale creation/update
         if continuing_sale_id:
-            # Update existing pending sale
             sale = Sale.query.get(continuing_sale_id)
             if not sale or sale.status != 'pending':
                 return jsonify({'error': 'Invalid pending sale'}), 400
             
-            # Check permissions
             if current_user.role == 'cashier' and sale.clerk_id != current_user.id:
                 return jsonify({'error': 'Access denied'}), 403
             
-            # Clear existing sale items and restore their inventory
+            # Restore inventory from previous sale items
             for item in sale.sale_items:
-                item.product.quantity += item.quantity
+                inventory_to_restore = item.product.calculate_inventory_deduction(
+                    item.quantity, item.unit_type
+                )
+                item.product.quantity += inventory_to_restore
                 db.session.delete(item)
             
-            # Update sale details
             sale.payment_method = payment_method
             sale.amount_paid = amount_paid
             sale.change_given = change_given
@@ -136,7 +217,6 @@ def checkout():
             
             session.pop('continue_sale_id', None)
         else:
-            # Create new sale
             sale = Sale(
                 clerk_id=current_user.id, 
                 total_amount=0,
@@ -148,64 +228,30 @@ def checkout():
             )
             db.session.add(sale)
         
-        db.session.flush()  # Get sale ID
+        db.session.flush()
         
-        total = Decimal('0.00')
-        total_profit = Decimal('0.00')
-        
-        for item in items:
-            product_id = int(item['product_id'])
-            quantity = int(item['quantity'])
-            unit_type = item.get('unit_type', 'full')
-            
-            product = Product.query.get(product_id)
-            if not product:
-                raise ValueError(f'Product not found')
-            
-            if product.quantity < quantity:
-                raise ValueError(f'Insufficient stock for {product.name}')
-            
-            # Get price and cost based on unit type
-            price = product.get_price_for_unit(unit_type)
-            
-            # Calculate cost basis for profit tracking
-            if unit_type == 'full':
-                cost_basis = product.purchase_price
-            elif unit_type == 'half':
-                cost_basis = product.purchase_price / Decimal('2')
-            elif unit_type == 'quarter':
-                cost_basis = product.purchase_price / Decimal('4')
-            else:
-                cost_basis = product.purchase_price
+        # STEP 4: Process validated items and update inventory
+        for item_data in validated_items:
+            product = item_data['product']
             
             # Update stock only if sale is completed
             if sale_status == 'completed':
-                product.quantity -= quantity
+                product.quantity -= item_data['inventory_deduction']
             
-            # Create sale item with unit type and cost tracking
+            # Create sale item
             sale_item = SaleItem(
                 sale=sale,
                 product=product,
-                quantity=quantity,
-                unit_type=unit_type,
-                price_at_sale=price,
-                cost_at_sale=cost_basis
+                quantity=item_data['quantity'],
+                unit_type=item_data['unit_type'],
+                price_at_sale=item_data['price'],
+                cost_at_sale=item_data['cost_basis']
             )
             db.session.add(sale_item)
-            
-            line_total = Decimal(str(price)) * quantity
-            line_profit = (Decimal(str(price)) - Decimal(str(cost_basis))) * quantity
-            
-            total += line_total
-            total_profit += line_profit
         
-        # FIXED: Assign both totals
+        # Update sale totals
         sale.total_amount = float(total)
         sale.total_profit = float(total_profit)
-        
-        # Validate payment amount for completed sales
-        if sale_status == 'completed' and amount_paid < total:
-            raise ValueError('Payment amount is less than total amount')
         
         db.session.commit()
         
@@ -225,45 +271,12 @@ def checkout():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 400
-    
-
-# Fix the sales list route (remove the broken one and keep this correct one)
-"""@bp.route('/sales/list')
-@login_required
-@role_required(['clerk', 'manager', 'admin'])
-def list_sales():
-    Display list of sales with filtering and pagination
-    page = request.args.get('page', 1, type=int)
-    status_filter = request.args.get('status', 'all')
-    
-    # Build query based on user role and status filter
-    query = Sale.query
-    
-    # Regular clerks can only see their own sales
-    if current_user.role == 'clerk':
-        query = query.filter(Sale.clerk_id == current_user.id)
-    
-    # Apply status filter
-    if status_filter != 'all':
-        query = query.filter(Sale.status == status_filter)
-    
-    # Paginate results
-    sales = query.order_by(Sale.created_at.desc()).paginate(
-        page=page, per_page=20, error_out=False
-    )
-    
-    return render_template(
-        'pos/sales_list.html', 
-        sales=sales, 
-        status_filter=status_filter,
-        current_time=datetime.now()
-    )"""
 
 @bp.route('/sales/<int:sale_id>/status', methods=['GET', 'POST'])
 @login_required
 @manager_required
 def update_sale_status(sale_id):
-    """Update sale status with inventory adjustments"""
+    """Update sale status with CORRECT fractional inventory adjustments"""
     sale = Sale.query.get_or_404(sale_id)
     form = SaleStatusForm(obj=sale)
     
@@ -276,15 +289,26 @@ def update_sale_status(sale_id):
             if old_status == 'completed' and new_status in ['pending', 'cancelled']:
                 # Return items to inventory
                 for item in sale.sale_items:
-                    item.product.quantity += item.quantity
+                    inventory_to_restore = item.product.calculate_inventory_deduction(
+                        item.quantity, item.unit_type
+                    )
+                    item.product.quantity += inventory_to_restore
             
             elif old_status in ['pending', 'cancelled'] and new_status == 'completed':
                 # Remove items from inventory
                 for item in sale.sale_items:
-                    if item.product.quantity < item.quantity:
-                        flash(f'Insufficient stock for {item.product.name}. Cannot complete sale.', 'error')
+                    inventory_to_deduct = item.product.calculate_inventory_deduction(
+                        item.quantity, item.unit_type
+                    )
+                    
+                    if item.product.quantity < inventory_to_deduct:
+                        if item.unit_type == 'unit':
+                            flash(f'Insufficient stock for {item.product.name}. Need {item.quantity} units, have {int(item.product.total_units_available)} units. Cannot complete sale.', 'error')
+                        else:
+                            flash(f'Insufficient stock for {item.product.name}. Need {inventory_to_deduct} packs, have {item.product.quantity}. Cannot complete sale.', 'error')
                         return redirect(url_for('pos.update_sale_status', sale_id=sale_id))
-                    item.product.quantity -= item.quantity
+                    
+                    item.product.quantity -= inventory_to_deduct
         
         sale.status = new_status
         db.session.commit()
@@ -304,10 +328,7 @@ def receipt(sale_id):
 @login_required
 @manager_required
 def sales_report():
-    """Generate sales report with profit analysis"""
-    from datetime import datetime, timedelta
-    from sqlalchemy import func, and_
-    
+    """Generate sales report with profit analysis and expenses overlay"""
     # Get date range from query parameters
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
@@ -334,6 +355,51 @@ def sales_report():
     # Calculate totals
     total_sales = sales_query.count()
     total_revenue = sales_query.with_entities(func.sum(Sale.total_amount)).scalar() or 0
+    total_profit = sales_query.with_entities(func.sum(Sale.total_profit)).scalar() or 0
+    
+    # Get daily revenue data
+    daily_revenue = db.session.query(
+        func.date(Sale.created_at).label('date'),
+        func.sum(Sale.total_amount).label('revenue'),
+        func.sum(Sale.total_profit).label('profit')
+    ).filter(
+        and_(
+            Sale.created_at >= start_date,
+            Sale.created_at <= end_date,
+            Sale.status == 'completed'
+        )
+    ).group_by(func.date(Sale.created_at)).order_by('date').all()
+    
+    # Get daily expenses data
+    daily_expenses = db.session.query(
+        Expense.date.label('date'),
+        func.sum(Expense.amount).label('total_expense')
+    ).filter(
+        and_(
+            Expense.date >= start_date,
+            Expense.date <= end_date
+        )
+    ).group_by(Expense.date).all()
+    
+    # Create expense lookup dictionary
+    expense_dict = {exp.date: float(exp.total_expense) for exp in daily_expenses}
+    
+    # Combine revenue and expense data
+    daily_data = []
+    for row in daily_revenue:
+        date_obj = row.date if isinstance(row.date, date) else datetime.strptime(row.date, '%Y-%m-%d').date()
+        daily_data.append({
+            'date': date_obj.strftime('%Y-%m-%d'),
+            'revenue': float(row.revenue),
+            'profit': float(row.profit),
+            'expense': expense_dict.get(date_obj, 0.0)
+        })
+    
+    # Calculate total expenses in period
+    total_expenses = sum(expense_dict.values())
+    
+    # Calculate net profit (profit - expenses)
+    net_profit = float(total_profit) - total_expenses
     
     # Get profit breakdown by unit type
     unit_type_stats = db.session.query(
@@ -368,6 +434,10 @@ def sales_report():
                          end_date=end_date,
                          total_sales=total_sales,
                          total_revenue=total_revenue,
+                         total_profit=total_profit,
+                         total_expenses=total_expenses,
+                         net_profit=net_profit,
+                         daily_data=daily_data,
                          unit_type_stats=unit_type_stats,
                          payment_stats=payment_stats)
 
@@ -377,52 +447,42 @@ def sales_report():
 def export_sales_excel():
     """Export sales data to Excel format"""
     try:
-        # Get filter parameters
         status_filter = request.args.get('status', 'all')
         
-        # Build query based on status filter
         query = Sale.query
         if status_filter != 'all':
             query = query.filter(Sale.status == status_filter)
         
-        # Get all sales (not paginated for export)
         sales = query.order_by(Sale.created_at.desc()).all()
         
         if not sales:
             flash('No sales data to export', 'warning')
             return redirect(url_for('pos.list_sales'))
         
-        # Create workbook
         wb = Workbook()
         ws = wb.active
         ws.title = f"Sales Report - {status_filter.title()}"
         
-        # Set up headers
         headers = [
             'Date', 'Time', 'Invoice Number', 'Items Count', 'Total Amount', 
             'Amount Paid', 'Change Given', 'Payment Method', 'Status', 'Clerk',
             'Product Name', 'SKU', 'Unit Type', 'Quantity', 'Unit Price', 'Line Total'
         ]
         
-        # Style for headers
         header_font = Font(bold=True, color='FFFFFF')
         header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
         header_alignment = Alignment(horizontal='center', vertical='center')
         
-        # Write headers
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = header_alignment
         
-        # Write data
         row = 2
         for sale in sales:
-            # Get sale items
             if sale.sale_items:
                 for i, item in enumerate(sale.sale_items):
-                    # Sale info (only on first row for each sale)
                     if i == 0:
                         ws.cell(row=row, column=1, value=sale.created_at.strftime('%Y-%m-%d'))
                         ws.cell(row=row, column=2, value=sale.created_at.strftime('%H:%M:%S'))
@@ -435,7 +495,6 @@ def export_sales_excel():
                         ws.cell(row=row, column=9, value=sale.status.title())
                         ws.cell(row=row, column=10, value=sale.clerk.username)
                     
-                    # Item details
                     ws.cell(row=row, column=11, value=item.product.name)
                     ws.cell(row=row, column=12, value=item.product.sku)
                     ws.cell(row=row, column=13, value=item.unit_display)
@@ -445,7 +504,6 @@ def export_sales_excel():
                     
                     row += 1
             else:
-                # Sale without items
                 ws.cell(row=row, column=1, value=sale.created_at.strftime('%Y-%m-%d'))
                 ws.cell(row=row, column=2, value=sale.created_at.strftime('%H:%M:%S'))
                 ws.cell(row=row, column=3, value=sale.invoice_number)
@@ -458,7 +516,6 @@ def export_sales_excel():
                 ws.cell(row=row, column=10, value=sale.clerk.username)
                 row += 1
         
-        # Add summary row
         summary_row = row + 1
         ws.cell(row=summary_row, column=1, value="TOTALS:")
         ws.cell(row=summary_row, column=4, value=sum(len(sale.sale_items) for sale in sales))
@@ -466,13 +523,11 @@ def export_sales_excel():
         ws.cell(row=summary_row, column=6, value=sum(float(sale.amount_paid) for sale in sales))
         ws.cell(row=summary_row, column=7, value=sum(float(sale.change_given) for sale in sales))
         
-        # Style summary row
         for col in range(1, 17):
             cell = ws.cell(row=summary_row, column=col)
             cell.font = Font(bold=True)
             cell.fill = PatternFill(start_color='E7E6E6', end_color='E7E6E6', fill_type='solid')
         
-        # Auto-adjust column widths
         for column in ws.columns:
             max_length = 0
             column_letter = column[0].column_letter
@@ -485,7 +540,6 @@ def export_sales_excel():
             adjusted_width = min(max_length + 2, 50)
             ws.column_dimensions[column_letter].width = adjusted_width
         
-        # Create response
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
@@ -503,27 +557,21 @@ def export_sales_excel():
         flash(f'Export failed: {str(e)}', 'danger')
         return redirect(url_for('pos.list_sales'))
 
-
 @bp.route('/continue-sale/<int:sale_id>')
 @login_required
-#0@role_required(['clerk', 'manager', 'admin'])
 def continue_sale(sale_id):
     """Continue shopping on a pending sale"""
     try:
-        # Get the sale
         sale = Sale.query.get_or_404(sale_id)
         
-        # Check if sale is pending
         if sale.status != 'pending':
             flash('Can only continue pending sales', 'warning')
             return redirect(url_for('pos.list_sales'))
         
-        # Check permissions - users can only continue their own sales unless manager/admin
         if current_user.role == 'clerk' and sale.clerk_id != current_user.id:
             flash('You can only continue your own sales', 'danger')
             return redirect(url_for('pos.list_sales'))
         
-        # Store sale ID in session for the POS page to load
         session['continue_sale_id'] = sale_id
         flash(f'Continuing sale {sale.invoice_number}', 'success')
         
@@ -534,10 +582,8 @@ def continue_sale(sale_id):
         flash('Failed to continue sale', 'danger')
         return redirect(url_for('pos.list_sales'))
 
-
 @bp.route('/load-pending-sale/<int:sale_id>')
 @login_required
-#@role_required(['clerk', 'manager', 'admin'])
 def load_pending_sale(sale_id):
     """API endpoint to load pending sale items into cart"""
     try:
@@ -546,22 +592,32 @@ def load_pending_sale(sale_id):
         if sale.status != 'pending':
             return jsonify({'success': False, 'error': 'Sale is not pending'})
         
-        # Check permissions
         if current_user.role == 'clerk' and sale.clerk_id != current_user.id:
             return jsonify({'success': False, 'error': 'Access denied'})
         
-        # Format sale items for the cart
         cart_items = []
         for item in sale.sale_items:
+            # Calculate available stock including reserved quantity
+            if item.unit_type == 'unit':
+                reserved_packs = item.product.calculate_inventory_deduction(item.quantity, 'unit')
+                available_units = int((item.product.quantity + reserved_packs) * item.product.units_per_pack)
+                stock_value = item.product.quantity + reserved_packs
+            else:
+                reserved_packs = item.product.calculate_inventory_deduction(item.quantity, item.unit_type)
+                stock_value = item.product.quantity + reserved_packs
+                available_units = None
+            
             cart_items.append({
                 'id': item.product.id,
                 'name': item.product.name,
                 'price': float(item.price_at_sale),
                 'quantity': item.quantity,
-                'stock': item.product.quantity + item.quantity,  # Add back the reserved quantity
+                'stock': float(stock_value),
                 'sku': item.product.sku,
                 'unit_type': item.unit_type,
-                'profit': float(item.line_profit)
+                'profit': float(item.line_profit / item.quantity) if item.quantity > 0 else 0,
+                'units_per_pack': item.product.units_per_pack,
+                'total_units': available_units
             })
         
         return jsonify({
@@ -579,28 +635,21 @@ def load_pending_sale(sale_id):
         current_app.logger.error(f"Load pending sale error: {str(e)}")
         return jsonify({'success': False, 'error': 'Failed to load sale'})
 
-
-# Update your list_sales function to include current_time
 @bp.route('/list-sales')
 @login_required
-#@role_required(['clerk', 'manager', 'admin'])
 def list_sales():
     """Display list of sales with filtering and pagination"""
     page = request.args.get('page', 1, type=int)
     status_filter = request.args.get('status', 'all')
     
-    # Build query based on user role and status filter
     query = Sale.query
     
-    # Regular clerks can only see their own sales
     if current_user.role == 'clerk':
         query = query.filter(Sale.clerk_id == current_user.id)
     
-    # Apply status filter
     if status_filter != 'all':
         query = query.filter(Sale.status == status_filter)
     
-    # Paginate results
     sales = query.order_by(Sale.created_at.desc()).paginate(
         page=page, per_page=20, error_out=False
     )
@@ -612,20 +661,16 @@ def list_sales():
         current_time=datetime.now()
     )
 
-# Add this to your pos.py file
-
 @bp.route('/profits-dashboard')
 @login_required
 @manager_required
 def profits_dashboard():
     """Comprehensive profits dashboard"""
-    from datetime import datetime, timedelta
-    from sqlalchemy import func, and_
+    from datetime import timedelta
     
-    # Get date range from query parameters
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    period = request.args.get('period', '30')  # default 30 days
+    period = request.args.get('period', '30')
     
     if not start_date:
         start_date = (datetime.now() - timedelta(days=int(period))).date()
@@ -637,7 +682,6 @@ def profits_dashboard():
     else:
         end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
     
-    # Overall profit totals
     total_sales_query = Sale.query.filter(
         and_(
             Sale.created_at >= start_date,
@@ -650,13 +694,9 @@ def profits_dashboard():
     total_profit = total_sales_query.with_entities(func.sum(Sale.total_profit)).scalar() or 0
     total_sales_count = total_sales_query.count()
     
-    # Calculate total cost (revenue - profit)
     total_cost = float(total_revenue) - float(total_profit)
-    
-    # Profit margin percentage
     profit_margin = (float(total_profit) / float(total_revenue) * 100) if total_revenue > 0 else 0
     
-    # Daily profit breakdown - FIXED: Convert string dates back to date objects
     daily_profits_raw = db.session.query(
         func.date(Sale.created_at).label('date'),
         func.sum(Sale.total_amount).label('revenue'),
@@ -670,10 +710,8 @@ def profits_dashboard():
         )
     ).group_by(func.date(Sale.created_at)).order_by('date').all()
     
-    # Convert string dates to date objects
     daily_profits = []
     for row in daily_profits_raw:
-        # Convert string date to date object if it's a string
         if isinstance(row.date, str):
             date_obj = datetime.strptime(row.date, '%Y-%m-%d').date()
         else:
@@ -686,7 +724,6 @@ def profits_dashboard():
             'sales_count': row.sales_count
         })
     
-    # FIXED: Profit by product (top performers) - using text() for ORDER BY
     product_profits = db.session.query(
         Product.name.label('product_name'),
         Product.sku.label('sku'),
@@ -701,7 +738,6 @@ def profits_dashboard():
         )
     ).group_by(Product.id, Product.name, Product.sku).order_by(text('total_profit DESC')).limit(10).all()
     
-    # Profit by unit type
     unit_profits = db.session.query(
         SaleItem.unit_type,
         func.sum(SaleItem.quantity).label('quantity_sold'),
@@ -715,7 +751,6 @@ def profits_dashboard():
         )
     ).group_by(SaleItem.unit_type).all()
     
-    # Monthly comparison (if date range > 30 days) - FIXED: Handle date conversion
     monthly_profits = []
     if (end_date - start_date).days > 30:
         monthly_profits_raw = db.session.query(
@@ -731,7 +766,6 @@ def profits_dashboard():
             )
         ).group_by(func.strftime('%Y-%m', Sale.created_at)).order_by('month').all()
         
-        # Convert to list of dictionaries for easier template handling
         monthly_profits = []
         for row in monthly_profits_raw:
             monthly_profits.append({

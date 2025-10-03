@@ -100,12 +100,12 @@
                                     <span class="badge bg-info">{{ sale.sale_items|length }} items</span>
                                 </td>
                                 <td>
-                                    <strong class="text-success">GHS {{ "%.2f"|format(sale.total_amount) }}</strong>
+                                    <strong class="text-success">GHS {{ sale.total_amount|currency }}</strong>
                                 </td>
                                 <td>
-                                    <span class="text-primary">GHS {{ "%.2f"|format(sale.amount_paid) }}</span>
+                                    <span class="text-primary">GHS {{ sale.amount_paid|currency }}</span>
                                     {% if sale.change_given > 0 %}
-                                        <br><small class="text-info">Change: GHS {{ "%.2f"|format(sale.change_given) }}</small>
+                                        <br><small class="text-info">Change: GHS {{ sale.change_given|currency }}</small>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -178,10 +178,10 @@
                             <tr>
                                 <th colspan="3">Totals ({{ sales.total }} records)</th>
                                 <th class="text-success">
-                                    GHS {{ "%.2f"|format(sales.items|sum(attribute='total_amount')) }}
+                                    GHS {{ sales.items|sum(attribute='total_amount')|currency }}
                                 </th>
                                 <th class="text-primary">
-                                    GHS {{ "%.2f"|format(sales.items|sum(attribute='amount_paid')) }}
+                                    GHS {{ sales.items|sum(attribute='amount_paid')|currency }}
                                 </th>
                                 <th colspan="4"></th>
                             </tr>
@@ -279,10 +279,10 @@
                         {% endif %}
                     </div>
                     <div class="col-md-6 text-md-end">
-                        <strong>Total: <span class="text-success">GHS {{ "%.2f"|format(sale.total_amount) }}</span></strong><br>
-                        <strong>Paid: <span class="text-primary">GHS {{ "%.2f"|format(sale.amount_paid) }}</span></strong><br>
+                        <strong>Total: <span class="text-success">GHS {{ sale.total_amount|currency }}</span></strong><br>
+                        <strong>Paid: <span class="text-primary">GHS {{ sale.amount_paid|currency }}</span></strong><br>
                         {% if sale.change_given > 0 %}
-                        <strong>Change: <span class="text-info">GHS {{ "%.2f"|format(sale.change_given) }}</span></strong><br>
+                        <strong>Change: <span class="text-info">GHS {{ sale.change_given|currency }}</span></strong><br>
                         {% endif %}
                         <strong>Method: {{ sale.payment_method.title() }}</strong>
                     </div>

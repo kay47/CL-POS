@@ -1,9 +1,10 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from config import config
 from decimal import Decimal
+import os
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -31,7 +32,7 @@ def create_app(config_name='development'):
     def load_user(user_id):
         return User.query.get(int(user_id))
     
-    @app.template_filter('currency')
+    '''@app.template_filter('currency')
     def format_currency(value):
         """Format a number as currency"""
         if value is None:
@@ -45,10 +46,45 @@ def create_app(config_name='development'):
         try:
             return f"GHS {float(value):,.2f}"
         except (ValueError, TypeError):
-            return "GHS 0.00"
+            return "GHS 0.00"'''
+    
+     #Register custom Jinja2 filters for money formatting
+    @app.template_filter('currency')
+    def currency_filter(value):
+        """Format number as currency with thousand separators (2 decimal places)"""
+        try:
+            if value is None:
+                return "0.00"
+            num_value = float(value)
+            return "{:,.2f}".format(num_value)
+        except (ValueError, TypeError):
+            return "0.00"
+    
+    # Add alias for backward compatibility
+    @app.template_filter('format_currency')
+    def format_currency_filter(value):
+        """Alias for currency filter"""
+        return currency_filter(value)
+    
+    @app.template_filter('number')
+    def number_filter(value):
+        """Format whole numbers with thousand separators"""
+        try:
+            if value is None:
+                return "0"
+            num_value = int(float(value))  # Handle decimal values
+            return "{:,}".format(num_value)
+        except (ValueError, TypeError):
+            return "0"
+        
+    # Add this route to serve uploaded images
+    @app.route('/static/uploads/product_images/<filename>')
+    def uploaded_file(filename):
+        upload_folder = os.path.join(app.root_path, 'static', 'uploads', 'product_images')
+        return send_from_directory(upload_folder, filename)    
     
     # Alternative name that matches your template usage
-    app.jinja_env.filters['format_currency'] = format_currency
+    app.jinja_env.filters['format_currency'] = currency_filter
 
     # Register blueprints
     from app.main import bp as main_bp

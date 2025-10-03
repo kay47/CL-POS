@@ -8,10 +8,66 @@ from app.decorators import admin_required, manager_required
 from app import db
 from sqlalchemy import or_, func
 from decimal import Decimal
+from werkzeug.utils import secure_filename
+from datetime import datetime
 import csv
 import io
+import os
 
 bp = Blueprint('products', __name__)
+
+def get_product_image_folder():
+    """Get the product image folder path"""
+    # This will be: C:\Users\kwame\OneDrive\Desktop\CL-POS\app\static\uploads\product_images
+    from flask import current_app
+    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'product_images')
+    os.makedirs(upload_folder, exist_ok=True)  # Create if doesn't exist
+    return upload_folder
+
+def save_product_image(file, product_id):
+    """Save uploaded product image and return file info"""
+    if file and file.filename:
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        name, ext = os.path.splitext(filename)
+        unique_filename = f"product_{product_id}_{timestamp}{ext}"
+        
+        # Get the correct upload folder
+        upload_folder = get_product_image_folder()
+        filepath = os.path.join(upload_folder, unique_filename)
+
+        print(f"DEBUG: Attempting to save image to: {filepath}")
+        print(f"DEBUG: Upload folder: {upload_folder}")
+        print(f"DEBUG: File object: {file}")
+        
+        # Save the file
+        file.save(filepath)
+        
+        # Verify it was saved
+        if not os.path.exists(filepath):
+            print(f"ERROR: File was not saved to {filepath}")
+            raise Exception(f"Image was not saved to {filepath}")
+        
+        print(f"SUCCESS: Image saved to {filepath}")
+        print(f"File size: {os.path.getsize(filepath)} bytes")
+        
+        return {
+            'filename': unique_filename,
+            'path': filepath
+        }
+    return None
+
+def delete_product_image(product):
+    """Delete the product image file"""
+    if product.image_path and os.path.exists(product.image_path):
+        try:
+            os.remove(product.image_path)
+            print(f"Deleted image: {product.image_path}")
+            return True
+        except Exception as e:
+            print(f"Error deleting image: {e}")
+            return False
+    return False
 
 @bp.route('/')
 @login_required
@@ -134,7 +190,6 @@ def edit_product(product_id):
             if form.category.data != product.category:
                 new_sku = Product.generate_sku(form.category.data)
                 
-                # Ensure uniqueness
                 counter = 1
                 original_sku = new_sku
                 while Product.query.filter_by(sku=new_sku).filter(Product.id != product.id).first():
@@ -146,6 +201,27 @@ def edit_product(product_id):
                 product.sku = new_sku
                 flash(f'Category changed - New SKU generated: {new_sku}', 'info')
             
+            # Handle image upload BEFORE other updates
+            if form.product_image.data:
+                try:
+                    print(f"DEBUG: Image upload detected for product {product.id}")
+                    print(f"DEBUG: Form data: {form.product_image.data}")
+                    
+                    # Delete old image if exists
+                    delete_product_image(product)
+                    
+                    # Save new image
+                    image_info = save_product_image(form.product_image.data, product.id)
+                    if image_info:
+                        product.image_filename = image_info['filename']
+                        product.image_path = image_info['path']
+                        print(f"DEBUG: Updated product.image_filename = {product.image_filename}")
+                        print(f"DEBUG: Updated product.image_path = {product.image_path}")
+                        flash('Product image uploaded successfully!', 'success')
+                except Exception as e:
+                    print(f"ERROR: Image upload failed: {str(e)}")
+                    flash(f'Error saving image: {str(e)}', 'warning')
+            
             # Update other fields
             product.name = form.name.data.strip()
             product.category = form.category.data
@@ -153,15 +229,24 @@ def edit_product(product_id):
             product.purchase_price = form.purchase_price.data
             product.full_price = form.full_price.data
             product.half_price = form.half_price.data if form.half_price.data else product.full_price / 2
-            product.price = form.full_price.data  # For backward compatibility
+            product.price = form.full_price.data
             product.quantity = form.quantity.data
             
+            # Update retail unit fields
+            product.units_per_pack = form.units_per_pack.data
+            product.unit_price = form.unit_price.data if form.unit_price.data else None
+            
+            # Commit to database
             db.session.commit()
+            
             flash(f'Product "{product.name}" updated successfully!', 'success')
             return redirect(url_for('products.list_products'))
             
         except Exception as e:
             db.session.rollback()
+            print(f"ERROR: Update failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
             flash(f'Error updating product: {str(e)}', 'error')
     
     return render_template('products/edit.html', form=form, title='Edit Product', product=product)

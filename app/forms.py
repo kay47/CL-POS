@@ -1,4 +1,5 @@
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, DecimalField, IntegerField, SubmitField, BooleanField, DateField, HiddenField
 from wtforms.validators import DataRequired, Length, NumberRange, ValidationError, Optional, EqualTo, Email
 from app.models import User, Product
@@ -173,13 +174,36 @@ class ProductForm(FlaskForm):
         validators=[Optional(), NumberRange(min=0, max=999999.99)],
         places=2,
         render_kw={'step': '0.01', 'min': '0', 'placeholder': '0.00'}
-)
+    )
+
+    # NEW: Retail unit fields
+    units_per_pack = IntegerField(
+        'Units Per Pack',
+        validators=[DataRequired(), NumberRange(min=1, max=10000)],
+        default=1,
+        render_kw={'min': '1', 'placeholder': '1'}
+    )
+    
+    unit_price = DecimalField(
+        'Unit Price (Retail)',
+        validators=[Optional(), NumberRange(min=0, max=999999.99)],
+        places=2,
+        render_kw={'step': '0.01', 'min': '0', 'placeholder': 'Auto-calculated'}
+    )
     
     quantity = IntegerField(
         'Initial Stock Quantity',
         validators=[DataRequired(), NumberRange(min=0, max=999999)],
         default=0,
         render_kw={'min': '0', 'placeholder': '0'}
+    )
+
+    # ✅ NEW: Product image upload field
+    product_image = FileField(
+        'Product Image',
+        validators=[
+            FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'svg'], 'Only image files are allowed!')
+        ]
     )
     
     submit = SubmitField('Save Product')
@@ -211,6 +235,11 @@ class ProductForm(FlaskForm):
                 raise ValidationError('Quarter price must be less than half price.')
         if field.data >= self.full_price.data:
             raise ValidationError('Quarter price must be less than full price.')
+        
+    def validate_unit_price(self, field):
+        """Validate unit price is less than full price"""
+        if field.data and field.data >= self.full_price.data:
+            raise ValidationError('Unit price must be less than full pack price.')
         
 class EditUserForm(FlaskForm):
     username = StringField('Username', validators=[
@@ -270,10 +299,60 @@ class ExpenseForm(FlaskForm):
         Optional(), 
         Length(max=50, message="Receipt number must be less than 50 characters")
     ])
+
+    # NEW: File upload field - REQUIRED
+    supporting_document = FileField('Supporting Document', validators=[
+        FileRequired(message='Please upload a supporting document (receipt, invoice, etc.)'),
+        FileAllowed(['pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx'], 
+                   'Only PDF, images, and document files are allowed!')
+    ])
     
     notes = TextAreaField('Additional Notes', validators=[Optional()])
     
     submit = SubmitField('Save Expense')
+
+class ExpenseEditForm(FlaskForm):
+    """Form for editing expenses - document upload is optional"""
+    category = SelectField('Category', validators=[DataRequired()], choices=[
+        ('rent', 'Rent'),
+        ('utilities', 'Utilities'),
+        ('supplies', 'Office Supplies'),
+        ('inventory', 'Inventory Purchase'),
+        ('maintenance', 'Maintenance & Repairs'),
+        ('marketing', 'Marketing & Advertising'),
+        ('transportation', 'Transportation'),
+        ('insurance', 'Insurance'),
+        ('professional', 'Professional Services'),
+        ('other', 'Other')
+    ])
+    
+    description = StringField('Description', validators=[
+        DataRequired(), 
+        Length(max=200, message="Description must be less than 200 characters")
+    ])
+    
+    amount = DecimalField('Amount (GHS)', validators=[
+        DataRequired(), 
+        NumberRange(min=0.01, message="Amount must be greater than 0")
+    ], places=2)
+    
+    date = DateField('Date', validators=[DataRequired()], default=datetime.today)
+    
+    receipt_number = StringField('Receipt Number', validators=[
+        Optional(), 
+        Length(max=50, message="Receipt number must be less than 50 characters")
+    ])
+    
+    # Optional for editing - only upload if replacing existing document
+    supporting_document = FileField('Replace Supporting Document', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx'], 
+                   'Only PDF, images, and document files are allowed!')
+    ])
+    
+    notes = TextAreaField('Additional Notes', validators=[Optional()])
+    
+    submit = SubmitField('Update Expense')    
 
 class SaleStatusForm(FlaskForm):
     status = SelectField('Status', choices=[
