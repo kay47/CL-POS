@@ -1,25 +1,272 @@
 {% extends "base.html" %}
 
-{% block title %}Login - POS System{% endblock %}
+{% block title %}Login - MY LORD ENTERPRISE POS{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white text-center">
-                <h3 class="mb-0">
-                    <i class="bi bi-box-arrow-in-right"></i> Login
-                </h3>
+<style>
+    body {
+        background: #f8f9fa;
+        overflow-x: hidden;
+    }
+    
+    .login-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        margin-left: -12px;
+        margin-right: -12px;
+        margin-top: -1rem;
+    }
+    
+    .login-wrapper {
+        display: flex;
+        width: 100%;
+        min-height: 100vh;
+        box-shadow: 0 0 50px rgba(0,0,0,0.1);
+    }
+    
+    /* Left side - Image */
+    .login-image-side {
+        flex: 1;
+        background: linear-gradient(135deg, #2148f7 0%, #2908e6 100%);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem;
+    }
+    
+    .login-image-side::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("{{ url_for('static', filename='images/login-bg.jpeg') }}") center/cover;
+        opacity: 0.3;
+    }
+    
+    .login-image-content {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        color: white;
+    }
+    
+    .login-image-content h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .login-image-content p {
+        font-size: 1.25rem;
+        opacity: 0.95;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    }
+    
+    .login-brand-logo {
+        width: 120px;
+        height: 120px;
+        background: white;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .login-brand-logo i {
+        font-size: 4rem;
+        color: #667eea;
+    }
+    
+    /* Right side - Form */
+    .login-form-side {
+        flex: 1;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem;
+    }
+    
+    .login-form-container {
+        width: 100%;
+        max-width: 450px;
+    }
+    
+    .login-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+    }
+    
+    .login-header h2 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+    
+    .login-header p {
+        color: #6c757d;
+        font-size: 1rem;
+    }
+    
+    .form-control {
+        padding: 0.875rem 1rem;
+        font-size: 1rem;
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-login {
+        padding: 0.875rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    .forgot-password {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s;
+    }
+    
+    .forgot-password:hover {
+        color: #764ba2;
+    }
+    
+    .login-footer {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .input-group-text {
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        border-right: none;
+        border-radius: 8px 0 0 8px;
+    }
+    
+    .input-group .form-control {
+        border-left: none;
+        border-radius: 0 8px 8px 0;
+    }
+    
+    .input-group:focus-within .input-group-text {
+        border-color: #667eea;
+    }
+    
+    /* Responsive */
+    @media (max-width: 992px) {
+        .login-image-side {
+            display: none;
+        }
+        
+        .login-wrapper {
+            min-height: auto;
+        }
+        
+        .login-container {
+            padding: 2rem 1rem;
+        }
+    }
+    
+    /* Animations */
+    .login-form-side {
+        animation: slideInRight 0.6s ease-out;
+    }
+    
+    .login-image-side {
+        animation: slideInLeft 0.6s ease-out;
+    }
+    
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @keyframes slideInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+</style>
+
+<div class="login-container">
+    <div class="login-wrapper">
+        <!-- Left Side - Image & Branding -->
+        <div class="login-image-side">
+            <div class="login-image-content">
+                <div class="login-brand-logo">
+                    <i class="bi bi-shop"></i>
+                </div>
+                <h1>MY LORD ENTERPRISE</h1>
+                <p>Complete Point of Sale System</p>
+                <p class="mt-4"><small>Manage your business with ease and efficiency</small></p>
             </div>
-            <div class="card-body">
+        </div>
+        
+        <!-- Right Side - Login Form -->
+        <div class="login-form-side">
+            <div class="login-form-container">
+                <div class="login-header">
+                    <h2>Welcome Back</h2>
+                    <p>Sign in to continue to your dashboard</p>
+                </div>
+                
                 <form method="POST">
                     {{ form.hidden_tag() }}
                     
                     <div class="mb-3">
                         {{ form.username.label(class="form-label") }}
-                        {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="bi bi-person"></i>
+                            </span>
+                            {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), placeholder="Enter your username") }}
+                        </div>
                         {% if form.username.errors %}
-                            <div class="invalid-feedback">
+                            <div class="text-danger mt-1 small">
                                 {% for error in form.username.errors %}
                                     {{ error }}
                                 {% endfor %}
@@ -29,9 +276,14 @@
                     
                     <div class="mb-3">
                         {{ form.password.label(class="form-label") }}
-                        {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="bi bi-lock"></i>
+                            </span>
+                            {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), placeholder="Enter your password") }}
+                        </div>
                         {% if form.password.errors %}
-                            <div class="invalid-feedback">
+                            <div class="text-danger mt-1 small">
                                 {% for error in form.password.errors %}
                                     {{ error }}
                                 {% endfor %}
@@ -39,22 +291,22 @@
                         {% endif %}
                     </div>
 
-                    <div class="mb-3 text-end">
-                        <a href="{{ url_for('auth.forgot_password') }}" class="text-decoration-none small">
+                    <div class="mb-4 text-end">
+                        <a href="{{ url_for('auth.forgot_password') }}" class="forgot-password small">
                             Forgot your password?
                         </a>
                     </div>
                     
-                    <div class="d-grid">
-                        {{ form.submit(class="btn btn-primary") }}
+                    <div class="d-grid mb-3">
+                        {{ form.submit(class="btn btn-primary btn-login") }}
                     </div>
                 </form>
-            </div>
-            <div class="card-footer text-center text-muted">
-                <small>
-                    <!--Default admin login: admin / admin123<br>-->
-                    <span class="text-warning">Change default password after first login!</span>
-                </small>
+                
+                <div class="login-footer">
+                    <small class="text-muted">
+                        <i class="bi bi-shield-check"></i> Secure Login
+                    </small>
+                </div>
             </div>
         </div>
     </div>

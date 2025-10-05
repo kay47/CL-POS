@@ -165,21 +165,55 @@ def add_product():
                 quantity=form.quantity.data
             )
             
+            # Set retail unit fields
+            product.units_per_pack = form.units_per_pack.data
+            product.unit_price = form.unit_price.data if form.unit_price.data else None
+            
+            # Add to session first so we have an ID
             db.session.add(product)
+            db.session.flush()  # This assigns an ID without committing
+            
+            # Handle image upload AFTER we have a product ID
+            if form.product_image.data:
+                try:
+                    print(f"DEBUG: Image upload detected for new product {product.id}")
+                    print(f"DEBUG: Form data: {form.product_image.data}")
+                    
+                    # Save new image
+                    image_info = save_product_image(form.product_image.data, product.id)
+                    if image_info:
+                        product.image_filename = image_info['filename']
+                        product.image_path = image_info['path']
+                        print(f"DEBUG: Set product.image_filename = {product.image_filename}")
+                        print(f"DEBUG: Set product.image_path = {product.image_path}")
+                except Exception as e:
+                    print(f"ERROR: Image upload failed: {str(e)}")
+                    # Don't fail the whole operation, just warn
+                    flash(f'Product added but image upload failed: {str(e)}', 'warning')
+            
+            # Commit everything
             db.session.commit()
             
-            flash(f'Product "{product.name}" added successfully with SKU: {product.sku}!', 'success')
+            success_message = f'Product "{product.name}" added successfully with SKU: {product.sku}!'
+            if form.product_image.data and product.image_filename:
+                success_message += ' Image uploaded.'
+            
+            flash(success_message, 'success')
             return redirect(url_for('products.list_products'))
             
         except Exception as e:
             db.session.rollback()
+            print(f"ERROR: Product creation failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
             flash(f'Error creating product: {str(e)}', 'error')
     
     return render_template('products/edit.html', form=form, title='Add Product')
 
 @bp.route('/<int:product_id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+#@admin_required
+@manager_required
 def edit_product(product_id):
     product = Product.query.get_or_404(product_id)
     form = ProductForm(original_sku=product.sku, obj=product)

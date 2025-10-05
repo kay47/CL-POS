@@ -3,6 +3,8 @@
 {% block title %}Profits Dashboard - MY LORD ENTERPRISE POS SYSTEM{% endblock %}
 
 {% block content %}
+<div class="container-fluid">
+    <div class="content-wrapper">
         <!-- Header -->
         <div class="row mb-4">
             <div class="col-12">
@@ -64,7 +66,7 @@
                         <div class="d-flex justify-content-between">
                             <div>
                                 <h6 class="card-title">Total Revenue</h6>
-                                <h4>GHS {{ total_revenue|currency }}</h4>
+                                <h4>GHS {{ "%.2f"|format(total_revenue|float) }}</h4>
                             </div>
                             <i class="bi bi-currency-dollar" style="font-size: 2rem; opacity: 0.7;"></i>
                         </div>
@@ -77,7 +79,7 @@
                         <div class="d-flex justify-content-between">
                             <div>
                                 <h6 class="card-title">Total Profit</h6>
-                                <h4>GHS {{ total_profit|currency }}</h4>
+                                <h4>GHS {{ "%.2f"|format(total_profit|float) }}</h4>
                             </div>
                             <i class="bi bi-graph-up" style="font-size: 2rem; opacity: 0.7;"></i>
                         </div>
@@ -162,9 +164,9 @@
                                         <td><strong>{{ product.product_name }}</strong></td>
                                         <td><code>{{ product.sku }}</code></td>
                                         <td class="text-center">{{ product.quantity_sold }}</td>
-                                        <td class="text-end">GHS {{ product.total_revenue|currency }}</td>
+                                        <td class="text-end">GHS {{ "%.2f"|format(product.total_revenue|float) }}</td>
                                         <td class="text-end text-success">
-                                            <strong>GHS {{ product.total_profit|currency }}</strong>
+                                            <strong>GHS {{ "%.2f"|format(product.total_profit|float) }}</strong>
                                         </td>
                                         <td class="text-end">
                                             {{ "%.1f"|format((product.total_profit / product.total_revenue * 100) if product.total_revenue > 0 else 0) }}%
@@ -189,20 +191,24 @@
                     <div class="card-body">
                         <div class="row">
                             {% for unit in unit_profits %}
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="border rounded p-3 mb-3">
                                     <h6 class="text-primary">
                                         {% if unit.unit_type == 'full' %}
                                             <i class="bi bi-box"></i> Full Pack
                                         {% elif unit.unit_type == 'half' %}
                                             <i class="bi bi-box-seam"></i> Half Pack
-                                        {% else %}
+                                        {% elif unit.unit_type == 'quarter' %}
                                             <i class="bi bi-box-arrow-down"></i> Quarter Pack
+                                        {% elif unit.unit_type == 'unit' %}
+                                            <i class="bi bi-diagram-3"></i> Single Units
+                                        {% else %}
+                                            <i class="bi bi-box"></i> {{ unit.unit_type.title() }}
                                         {% endif %}
                                     </h6>
                                     <p class="mb-1"><strong>Units Sold:</strong> {{ unit.quantity_sold }}</p>
-                                    <p class="mb-1"><strong>Revenue:</strong> GHS {{ unit.total_revenue|currency }}</p>
-                                    <p class="mb-0 text-success"><strong>Profit:</strong> GHS {{ unit.total_profit|currency }}</p>
+                                    <p class="mb-1"><strong>Revenue:</strong> GHS {{ "%.2f"|format(unit.total_revenue|float) }}</p>
+                                    <p class="mb-0 text-success"><strong>Profit:</strong> GHS {{ "%.2f"|format(unit.total_profit|float) }}</p>
                                 </div>
                             </div>
                             {% endfor %}
@@ -218,86 +224,105 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-        // Daily Profit Chart - FIXED: Handle the corrected data structure
-        const dailyCtx = document.getElementById('dailyProfitChart').getContext('2d');
-        const dailyProfitChart = new Chart(dailyCtx, {
-            type: 'line',
-            data: {
-                labels: [
+    // Daily Profit Chart
+    const dailyCtx = document.getElementById('dailyProfitChart').getContext('2d');
+    const dailyProfitChart = new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+            labels: [
+                {% for day in daily_profits %}
+                    "{{ day.date.strftime('%m/%d') if day.date else 'N/A' }}"{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Daily Profit (GHS)',
+                data: [
                     {% for day in daily_profits %}
-                        "{{ day.date.strftime('%m/%d') if day.date else 'N/A' }}"{% if not loop.last %},{% endif %}
+                    {{ day.profit|float if day.profit else 0 }}{% if not loop.last %},{% endif %}
                     {% endfor %}
                 ],
-                datasets: [{
-                    label: 'Daily Profit (GHS)',
-                    data: [
-                        {% for day in daily_profits %}
-                        {{ day.profit|float if day.profit else 0 }}{% if not loop.last %},{% endif %}
-                        {% endfor %}
-                    ],
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    tension: 0.1,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return 'GHS ' + value.toLocaleString('en-US', {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2
-                                });
-                            }
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'GHS ' + value.toLocaleString('en-US', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
                         }
                     }
                 }
             }
-        });
+        }
+    });
 
-        // Unit Type Profit Pie Chart
-        const unitCtx = document.getElementById('unitProfitChart').getContext('2d');
-        const unitProfitChart = new Chart(unitCtx, {
-            type: 'doughnut',
-            data: {
-                labels: [
-                    {% for unit in unit_profits %}
-                    '{{ unit.unit_type.title() }} Pack'{% if not loop.last %},{% endif %}
-                    {% endfor %}
-                ],
-                datasets: [{
-                    data: [
-                        {% for unit in unit_profits %}
-                        {{ unit.total_profit|float if unit.total_profit else 0 }}{% if not loop.last %},{% endif %}
-                        {% endfor %}
-                    ],
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.8)',
-                        'rgba(54, 162, 235, 0.8)',
-                        'rgba(255, 205, 86, 0.8)'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return context.label + ': GHS ' + context.parsed.toLocaleString('en-US', {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2
-                                });
-                            }
+    // Unit Type Profit Pie Chart
+    const unitCtx = document.getElementById('unitProfitChart').getContext('2d');
+    
+    // Create proper labels for each unit type
+    const unitLabels = [];
+    const unitData = [];
+    {% for unit in unit_profits %}
+        {% if unit.unit_type == 'full' %}
+            unitLabels.push('Full Pack');
+        {% elif unit.unit_type == 'half' %}
+            unitLabels.push('Half Pack');
+        {% elif unit.unit_type == 'quarter' %}
+            unitLabels.push('Quarter Pack');
+        {% elif unit.unit_type == 'unit' %}
+            unitLabels.push('Single Units');
+        {% else %}
+            unitLabels.push('{{ unit.unit_type.title() }}');
+        {% endif %}
+        unitData.push({{ unit.total_profit|float if unit.total_profit else 0 }});
+    {% endfor %}
+    
+    // Assign colors based on unit type
+    const colorMap = {
+        'Full Pack': 'rgba(75, 192, 192, 0.8)',      // Teal
+        'Half Pack': 'rgba(153, 102, 255, 0.8)',     // Purple
+        'Quarter Pack': 'rgba(255, 159, 64, 0.8)',   // Orange
+        'Single Units': 'rgba(54, 162, 35, 0.8)'    // Blue
+    };
+    
+    const unitColors = unitLabels.map(label => colorMap[label] || 'rgba(201, 203, 207, 0.8)');
+    
+    const unitProfitChart = new Chart(unitCtx, {
+        type: 'doughnut',
+        data: {
+            labels: unitLabels,
+            datasets: [{
+                data: unitData,
+                backgroundColor: unitColors
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': GHS ' + context.parsed.toLocaleString('en-US', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
                         }
                     }
+                },
+                legend: {
+                    position: 'bottom'
                 }
             }
-        });
-    </script>
+        }
+    });
 </script>
 {% endblock %}

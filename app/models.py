@@ -288,16 +288,40 @@ class Product(db.Model):
             return (profit / self.full_price) * 100
         return 0
     
-    def calculate_inventory_deduction(self, quantity, unit_type='full'):
-        """Calculate how many packs to deduct from inventory based on unit type and quantity"""
-        if unit_type == 'unit':
-            # Convert units to packs (e.g., 5 units with 12 units_per_pack = 0.4167 packs)
-            return Decimal(str(quantity)) / Decimal(str(self.units_per_pack))
+    def calculate_inventory_deduction(self, quantity, unit_type):
+        """
+        Calculate how many packs to deduct from inventory based on unit type
+        
+        Args:
+            quantity: Number of units being sold
+            unit_type: 'full', 'half', 'quarter', or 'unit'
+        
+        Returns:
+            Decimal: Number of packs to deduct from inventory
+        """
+        if unit_type == 'full':
+            # Selling full packs - deduct 1 pack per quantity
+            return Decimal(str(quantity))
+        
         elif unit_type == 'half':
+            # Selling half packs - deduct 0.5 pack per quantity
             return Decimal(str(quantity)) * Decimal('0.5')
+        
         elif unit_type == 'quarter':
+            # Selling quarter packs - deduct 0.25 pack per quantity
             return Decimal(str(quantity)) * Decimal('0.25')
-        else:  # full
+        
+        elif unit_type == 'unit':
+            # Selling individual units - deduct fractional pack
+            # Example: Selling 3 units from a 12-pack = 3/12 = 0.25 packs
+            if self.units_per_pack and self.units_per_pack > 0:
+                return Decimal(str(quantity)) / Decimal(str(self.units_per_pack))
+            else:
+                # Fallback: if units_per_pack not set, treat as full pack
+                return Decimal(str(quantity))
+        
+        else:
+            # Default: treat as full pack
             return Decimal(str(quantity))
         
     @property

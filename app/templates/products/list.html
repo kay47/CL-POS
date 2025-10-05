@@ -143,7 +143,7 @@
                             <th>Stock</th>
                             <th>Stock Value</th>
                             <th>Status</th>
-                            {% if current_user.is_admin() %}
+                            {% if current_user.is_admin() or current_user.is_manager() %}
                             <th>Actions</th>
                             {% endif %}
                         </tr>
@@ -195,7 +195,7 @@
                                     <span class="text-success"><i class="bi bi-check-circle"></i> In Stock</span>
                                 {% endif %}
                             </td>
-                            {% if current_user.is_admin() %}
+                            {% if current_user.is_admin() or current_user.is_manager() %}
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
                                     <a href="{{ url_for('products.edit_product', product_id=product.id) }}" 
