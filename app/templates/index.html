@@ -61,7 +61,8 @@
                         <i class="bi bi-graph-up fs-5 me-3"></i>
                         <span>Sales Reports</span>
                     </a>
-
+                    {% endif %}
+                    {% if current_user.role in ['admin'] %}
                     <a href="{{ url_for('pos.profits_dashboard') }}" class="btn btn-outline-success d-flex align-items-center p-1">
                         <i class="bi bi-graph-up fs-5 me-3"></i>
                         <span>Profits Dashboard</span>

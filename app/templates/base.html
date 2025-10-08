@@ -27,14 +27,14 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('products.list_products') }}">
-                            <i class="bi bi-box-seam"></i> Products
+                        <a class="nav-link" href="{{ url_for('pos.pos_page') }}">
+                            <i class="bi bi-cart"></i> POS
                         </a>
                     </li>
                     {% if current_user.is_manager() %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('pos.pos_page') }}">
-                            <i class="bi bi-cart"></i> POS
+                        <a class="nav-link" href="{{ url_for('products.list_products') }}">
+                            <i class="bi bi-box-seam"></i> Products
                         </a>
                     </li>
                     <li class="nav-item">
