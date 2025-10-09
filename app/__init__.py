@@ -119,6 +119,11 @@ def create_app(config_name='development'):
     def forbidden_error(error):
         return render_template('errors/403.html'), 403
     
+    # Add the health check endpoint
+    @app.route('/health')
+    def health_check():
+        return 'OK', 200
+    
     # Context processors
     @app.context_processor
     def utility_processor():
