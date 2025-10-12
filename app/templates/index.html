@@ -454,9 +454,21 @@
 
 {% block scripts %}
 {% if current_user.role in ['manager', 'admin'] %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
 <script>
-// Add Chart.js initialization if needed for the stock value chart
+// Stock Value Chart initialization
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('stockValueChart');
+    if (ctx) {
+        // Add your chart initialization code here
+        // Example:
+        // new Chart(ctx, {
+        //     type: 'bar',
+        //     data: {...},
+        //     options: {...}
+        // });
+    }
+});
 </script>
 {% endif %}
 {% endblock %}
