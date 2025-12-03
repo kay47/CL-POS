@@ -28,7 +28,7 @@
     /* Left side - Image */
     .login-image-side {
         flex: 1;
-        background: linear-gradient(135deg, #2148f7 0%, #2908e6 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         position: relative;
         overflow: hidden;
         display: flex;
@@ -37,7 +37,7 @@
         padding: 3rem;
     }
     
-    .login-image-side::before {
+    /*.login-image-side::before {
         content: '';
         position: absolute;
         top: 0;
@@ -46,7 +46,7 @@
         bottom: 0;
         background: url("{{ url_for('static', filename='images/login-bg.jpeg') }}") center/cover;
         opacity: 0.3;
-    }
+    }*/
     
     .login-image-content {
         position: relative;
@@ -238,11 +238,13 @@
         <div class="login-image-side">
             <div class="login-image-content">
                 <div class="login-brand-logo">
-                    <i class="bi bi-shop"></i>
+                    <img src="{{ url_for('static', filename='/flat-illustration-secretary-s-day-celebration.svg') }}" alt="Illustration">
                 </div>
-                <h1>MY LORD ENTERPRISE</h1>
-                <p>Complete Point of Sale System</p>
-                <p class="mt-4"><small>Manage your business with ease and efficiency</small></p>
+                <div>
+                    <h1>MY LORD ENTERPRISE</h1>
+                    <p>Complete Point of Sale System</p>
+                    <p class="mt-4"><small>Manage your business with ease and efficiency</small></p>
+                </div>
             </div>
         </div>
         

@@ -2,135 +2,357 @@
 
 {% block title %}Dashboard - POS System{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Metric Card Styles */
+    .metric-card {
+        padding: 2rem;
+        border-radius: 12px;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        min-height: 150px;
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        transition: all 0.5s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
+    
+    .metric-card:hover::before {
+        top: -40%;
+        right: -40%;
+    }
+
+    .metric-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .metric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .metric-title {
+        font-size: 0.95rem;
+        opacity: 0.95;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+    }
+
+    .metric-icon-circle {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .metric-value {
+        font-size: 2.75rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+        line-height: 1;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Custom Gradients */
+    .gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .gradient-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    .gradient-warning {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+    .gradient-info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    .gradient-danger {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    /* Quick Action Button Styles */
+    .action-btn {
+        padding: 1rem;
+        border-radius: 10px;
+        border: 2px solid #e5e7eb;
+        background: white;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        text-decoration: none;
+        color: #333;
+        font-weight: 500;
+    }
+
+    .action-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    .action-btn i {
+        font-size: 1.5rem;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    /* Stock Health Progress */
+    .progress {
+        height: 8px;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        transition: width 0.6s ease;
+    }
+
+    /* Enhanced Table */
+    .table-responsive {
+        border-radius: 0 0 12px 12px;
+        overflow: hidden;
+    }
+
+    /* Page Header */
+    .page-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .page-header h1 {
+        font-size: 2rem;
+        color: #333;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .page-header p {
+        color: #666;
+        margin: 0;
+    }
+
+    /* Stock Value Cards */
+    .value-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: all 0.3s;
+    }
+
+    .value-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+    }
+
+    .value-card h6 {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .value-card h4 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .value-card small {
+        color: #999;
+        font-size: 0.85rem;
+    }
+
+    /* Low Stock Alert */
+    .stock-item {
+        padding: 0.75rem;
+        background: #f9fafb;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s;
+    }
+
+    .stock-item:hover {
+        background: #f3f4f6;
+        transform: translateX(4px);
+    }
+
+    /* Sticky Sidebar */
+    .sticky-top {
+        position: sticky;
+        top: 100px;
+    }
+
+    /* Animation for cards on load */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate-on-load {
+        animation: fadeInUp 0.5s ease forwards;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row mb-1">
-    <div class="col-12">
-        <h1 class="h2">Dashboard</h1>
-        <p class="text-muted">
-            <i class="bi bi-calendar-date"></i> {{ current_date }}
-        </p>
-    </div>
+<div class="page-header">
+    <h1><i class="bi bi-speedometer2"></i> Dashboard Overview</h1>
+    <p>
+        <i class="bi bi-calendar-date"></i> {{ current_date }}
+    </p>
 </div>
 
-<!--QUICK ACTION-->
 <div class="row">
+    <!-- Quick Actions Sidebar -->
     <div class="col-lg-3 mb-4">
-        <div class="card sticky-top" style="top: 1rem;">
+        <div class="card sticky-top">
             <div class="card-header">
-                <h5 class="mb-0">Quick Actions</h5>
+                <h5><i class="bi bi-lightning-charge"></i> Quick Actions</h5>
             </div>
-            <div class="card-body p-2">
+            <div class="card-body p-3">
                 <div class="d-grid gap-2">
-                    <a href="{{ url_for('pos.pos_page') }}" class="btn btn-outline-success d-flex align-items-center p-1">
-                        <i class="bi bi-cart-plus fs-5 me-3"></i>
+                    <a href="{{ url_for('pos.pos_page') }}" class="action-btn">
+                        <i class="bi bi-cart-plus"></i>
                         <span>Point of Sale</span>
                     </a>
 
-                    <a href="{{ url_for('pos.list_sales') }}" class="btn btn-outline-success d-flex align-items-center p-1">
-                        <i class="bi bi-list-check fs-5 me-3"></i>
+                    <a href="{{ url_for('pos.list_sales') }}" class="action-btn">
+                        <i class="bi bi-list-check"></i>
                         <span>All Sales</span>
                     </a>
 
-                    <a href="{{ url_for('expenses.add_expense') }}" class="btn btn-outline-danger d-flex align-items-center p-1">
-                        <i class="bi bi-plus-square fs-5 me-3"></i>
+                    <a href="{{ url_for('expenses.add_expense') }}" class="action-btn">
+                        <i class="bi bi-plus-square"></i>
                         <span>Add Expense</span>
                     </a>
 
                     {% if current_user.role in ['manager', 'admin'] %}
-                    <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-primary d-flex align-items-center p-1">
-                        <i class="bi bi-box-seam fs-5 me-3"></i>
+                    <a href="{{ url_for('products.list_products') }}" class="action-btn">
+                        <i class="bi bi-box-seam"></i>
                         <span>Products</span>
                     </a>
 
-                    <a href="{{ url_for('products.add_product') }}" class="btn btn-outline-info d-flex align-items-center p-1">
-                        <i class="bi bi-plus-circle fs-5 me-3"></i>
+                    <a href="{{ url_for('products.add_product') }}" class="action-btn">
+                        <i class="bi bi-plus-circle"></i>
                         <span>Add Product</span>
                     </a>
 
-                    <a href="{{ url_for('expenses.list_expenses') }}" class="btn btn-outline-danger d-flex align-items-center p-1">
-                        <i class="bi bi-receipt fs-5 me-3"></i>
+                    <a href="{{ url_for('expenses.list_expenses') }}" class="action-btn">
+                        <i class="bi bi-receipt"></i>
                         <span>Expenses</span>
                     </a>
 
-                    <a href="{{ url_for('expenses.expense_summary') }}" class="btn btn-outline-info d-flex align-items-center p-1">
-                        <i class="bi bi-pie-chart fs-5 me-3"></i>
-                        <span>Expense Analytics</span>
+                    <a href="{{ url_for('expenses.expense_summary') }}" class="action-btn">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Analytics</span>
                     </a>
 
-                    <a href="{{ url_for('reports.sales_reports') }}" class="btn btn-outline-warning d-flex align-items-center p-1">
-                        <i class="bi bi-graph-up fs-5 me-3"></i>
+                    <a href="{{ url_for('reports.sales_reports') }}" class="action-btn">
+                        <i class="bi bi-graph-up"></i>
                         <span>Sales Reports</span>
                     </a>
                     {% endif %}
+
                     {% if current_user.role in ['admin'] %}
-                    <a href="{{ url_for('pos.profits_dashboard') }}" class="btn btn-outline-success d-flex align-items-center p-1">
-                        <i class="bi bi-graph-up fs-5 me-3"></i>
-                        <span>Profits Dashboard</span>
+                    <a href="{{ url_for('pos.profits_dashboard') }}" class="action-btn">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Profits</span>
                     </a>
                     {% endif %}
-
-                    <!--{% if current_user.role == 'admin' %}
-                    <hr class="my-2">
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-secondary d-flex align-items-center p-1">
-                        <i class="bi bi-person-plus fs-5 me-3"></i>
-                        <span>Add User</span>
-                    </a>
-
-                    <a href="{{ url_for('auth.manage_users') }}" class="btn btn-outline-secondary d-flex align-items-center p-1">
-                        <i class="bi bi-people fs-5 me-3"></i>
-                        <span>Manage Users</span>
-                    </a>
-                    {% endif %}-->
                 </div>
             </div>
         </div>
     </div>
 
-    <!--STATISTIC CARDS-->
+    <!-- Main Content -->
     <div class="col-lg-9">
+        <!-- Statistics Cards -->
         <div class="row mb-4">
-            <div class="col-lg-3 col-md-6 mb-3">
-                <div class="card text-white bg-primary">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
+            <div class="col-lg-3 col-md-6 mb-3 animate-on-load" style="animation-delay: 0.1s;">
+                <div class="metric-card gradient-primary">
+                    <div class="metric-content">
+                        <div class="metric-header">
                             <div>
-                                <h6 class="card-title">Total Products</h6>
-                                <h3 class="mb-0">{{ total_products }}</h3>
+                                <div class="metric-title">Total Products</div>
+                                <div class="metric-value">{{ total_products }}</div>
                             </div>
-                            <div class="align-self-center">
-                                <i class="bi bi-box-seam fs-2"></i>
+                            <div class="metric-icon-circle">
+                                <i class="bi bi-box-seam"></i>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-lg-3 col-md-6 mb-3">
-                <div class="card text-white bg-warning">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
+            <div class="col-lg-3 col-md-6 mb-3 animate-on-load" style="animation-delay: 0.2s;">
+                <div class="metric-card gradient-warning">
+                    <div class="metric-content">
+                        <div class="metric-header">
                             <div>
-                                <h6 class="card-title">Total Low Stock</h6>
-                                <h3 class="mb-0">{{ low_stock_products }}</h3>
+                                <div class="metric-title">Low Stock</div>
+                                <div class="metric-value">{{ low_stock_products }}</div>
                             </div>
-                            <div class="align-self-center">
-                                <i class="bi bi-exclamation-triangle fs-2"></i>
+                            <div class="metric-icon-circle">
+                                <i class="bi bi-exclamation-triangle"></i>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-lg-3 col-md-6 mb-3">
-                <div class="card text-white bg-success">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
+            <div class="col-lg-3 col-md-6 mb-3 animate-on-load" style="animation-delay: 0.3s;">
+                <div class="metric-card gradient-success">
+                    <div class="metric-content">
+                        <div class="metric-header">
                             <div>
-                                <h6 class="card-title">Today's Sales</h6>
-                                <h3 class="mb-0">{{ total_sales_today }}</h3>
+                                <div class="metric-title">Today's Sales</div>
+                                <div class="metric-value">{{ total_sales_today }}</div>
                             </div>
-                            <div class="align-self-center">
-                                <i class="bi bi-cart-check fs-2"></i>
+                            <div class="metric-icon-circle">
+                                <i class="bi bi-cart-check"></i>
                             </div>
                         </div>
                     </div>
@@ -138,16 +360,16 @@
             </div>
 
             {% if current_user.role == 'admin' %}
-            <div class="col-lg-3 col-md-6 mb-3">
-                <div class="card text-white bg-info">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
+            <div class="col-lg-3 col-md-6 mb-3 animate-on-load" style="animation-delay: 0.4s;">
+                <div class="metric-card gradient-info">
+                    <div class="metric-content">
+                        <div class="metric-header">
                             <div>
-                                <h6 class="card-title">Total Users</h6>
-                                <h3 class="mb-0">{{ total_users }}</h3>
+                                <div class="metric-title">Total Users</div>
+                                <div class="metric-value">{{ total_users }}</div>
                             </div>
-                            <div class="align-self-center">
-                                <i class="bi bi-people fs-2"></i>
+                            <div class="metric-icon-circle">
+                                <i class="bi bi-people"></i>
                             </div>
                         </div>
                     </div>
@@ -156,7 +378,7 @@
             {% endif %}
         </div>
         
-        <!-- Stock Value Summary Row -->
+        <!-- Stock Valuation Overview -->
         {% if current_user.role in ['manager', 'admin'] %}
         <div class="row mb-4">
             <div class="col-12">
@@ -167,85 +389,49 @@
         </div>
 
         <div class="row mb-4">
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card text-white bg-primary">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Stock Cost Value</h6>
-                        <h4 class="mb-0">GHS {{ stock_values.total_cost_value|currency }}</h4>
-                        <small>Total Investment</small>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-boxes fs-2"></i>
-                    </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="value-card">
+                    <h6>Stock Cost Value</h6>
+                    <h4 class="text-primary">GHS {{ stock_values.total_cost_value|currency }}</h4>
+                    <small>Total Investment</small>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="value-card">
+                    <h6>Stock Retail Value</h6>
+                    <h4 class="text-success">GHS {{ stock_values.total_retail_value|currency }}</h4>
+                    <small>If All Sold</small>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="value-card">
+                    <h6>Potential Profit</h6>
+                    <h4 class="text-info">GHS {{ stock_values.total_potential_profit|currency }}</h4>
+                    <small>
+                        {% if stock_values.total_cost_value > 0 %}
+                            {{ "%.1f"|format((stock_values.total_potential_profit / stock_values.total_cost_value) * 100) }}% margin
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="value-card">
+                    <h6>Total Units</h6>
+                    <h4 class="text-dark">{{ stock_stats.total_quantity|number }}</h4>
+                    <small>{{ stock_stats.in_stock_count }} products stocked</small>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card text-white bg-success">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Stock Retail Value</h6>
-                        <h4 class="mb-0">GHS {{ stock_values.total_retail_value|currency }}</h4>
-                        <small>If All Sold</small>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-currency-dollar fs-2"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card text-white bg-info">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Potential Profit</h6>
-                        <h4 class="mb-0">GHS {{ stock_values.total_potential_profit|currency }}</h4>
-                        <small>
-                            {% if stock_values.total_cost_value > 0 %}
-                                {{ "%.1f"|format((stock_values.total_potential_profit / stock_values.total_cost_value) * 100) }}% margin
-                            {% endif %}
-                        </small>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-graph-up-arrow fs-2"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card text-white bg-dark">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Total Units</h6>
-                        <h4 class="mb-0">{{ stock_stats.total_quantity|number }}</h4>
-                        <small>{{ stock_stats.in_stock_count }} products stocked</small>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-stack fs-2"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-        <!-- Stock Performance Chart -->
+        <!-- Stock Performance Chart and Health -->
         <div class="row mb-4">
             <div class="col-lg-8 mb-4">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="mb-0">Stock Value by Category</h5>
+                        <h5><i class="bi bi-bar-chart"></i> Stock Value by Category</h5>
                     </div>
                     <div class="card-body">
                         <canvas id="stockValueChart" width="400" height="200"></canvas>
@@ -256,37 +442,37 @@
             <div class="col-lg-4 mb-4">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="mb-0">Stock Health</h5>
+                        <h5><i class="bi bi-heart-pulse"></i> Stock Health</h5>
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
                                 <span>In Stock</span>
                                 <span class="badge bg-success">{{ stock_stats.in_stock_count }}</span>
                             </div>
-                            <div class="progress mt-1">
+                            <div class="progress">
                                 <div class="progress-bar bg-success" 
                                      style="width: {{ (stock_stats.in_stock_count / stock_stats.total_products * 100) if stock_stats.total_products > 0 else 0 }}%"></div>
                             </div>
                         </div>
                         
                         <div class="mb-3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span>Total Low Stock</span>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span>Low Stock</span>
                                 <span class="badge bg-warning">{{ stock_stats.low_stock_count }}</span>
                             </div>
-                            <div class="progress mt-1">
+                            <div class="progress">
                                 <div class="progress-bar bg-warning" 
                                      style="width: {{ (stock_stats.low_stock_count / stock_stats.total_products * 100) if stock_stats.total_products > 0 else 0 }}%"></div>
                             </div>
                         </div>
                         
                         <div class="mb-3">
-                            <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
                                 <span>Out of Stock</span>
                                 <span class="badge bg-danger">{{ stock_stats.out_of_stock_count }}</span>
                             </div>
-                            <div class="progress mt-1">
+                            <div class="progress">
                                 <div class="progress-bar bg-danger" 
                                      style="width: {{ (stock_stats.out_of_stock_count / stock_stats.total_products * 100) if stock_stats.total_products > 0 else 0 }}%"></div>
                             </div>
@@ -303,20 +489,20 @@
         </div>
         {% endif %}
 
-        <!--RECENT SALES-->
+        <!-- Recent Sales and Low Stock Alert -->
         <div class="row">
             <div class="col-lg-8 mb-4">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="mb-0">Recent Sales</h5>
+                        <h5><i class="bi bi-clock-history"></i> Recent Sales</h5>
                     </div>
                     <div class="card-body p-0">
                         {% if recent_sales and recent_sales.items %}
                         <div class="table-responsive">
-                            <table class="table table-sm table-hover mb-0">
-                                <thead class="table-light">
+                            <table class="table table-hover mb-0">
+                                <thead>
                                     <tr>
-                                        <th>Invoice Number</th>
+                                        <th>Invoice</th>
                                         <th>Date</th>
                                         <th>Clerk</th>
                                         <th>Status</th>
@@ -327,7 +513,7 @@
                                     {% for sale in recent_sales.items %}
                                     <tr>
                                         <td>
-                                            <a href="{{ url_for('pos.receipt', sale_id=sale.id) }}" class="text-decoration-none">
+                                            <a href="{{ url_for('pos.receipt', sale_id=sale.id) }}" class="text-decoration-none text-primary fw-bold">
                                                 {{ sale.invoice_number }}
                                             </a>
                                         </td>
@@ -344,7 +530,7 @@
                                                 {{ sale.status.title() }}
                                             </span>
                                         </td>
-                                        <td>GHS {{ sale.total_amount|currency }}</td>
+                                        <td><strong>GHS {{ sale.total_amount|currency }}</strong></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -352,27 +538,21 @@
                         </div>
 
                         {% if recent_sales.pages > 1 %}
-                        <nav aria-label="Sales pagination" class="p-3 pt-0">
+                        <nav aria-label="Sales pagination" class="p-3">
                             <ul class="pagination pagination-sm justify-content-center mb-0">
                                 {% if recent_sales.has_prev %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('main.index', page=recent_sales.prev_num) }}">
-                                            <i class="bi bi-chevron-left"></i>
-                                        </a>
-                                    </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('main.index', page=recent_sales.prev_num) }}">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
                                 {% endif %}
 
                                 {% for page_num in recent_sales.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
                                     {% if page_num %}
-                                        {% if page_num != recent_sales.page %}
-                                        <li class="page-item">
+                                        <li class="page-item {{ 'active' if page_num == recent_sales.page else '' }}">
                                             <a class="page-link" href="{{ url_for('main.index', page=page_num) }}">{{ page_num }}</a>
                                         </li>
-                                        {% else %}
-                                        <li class="page-item active">
-                                            <span class="page-link">{{ page_num }}</span>
-                                        </li>
-                                        {% endif %}
                                     {% else %}
                                     <li class="page-item disabled">
                                         <span class="page-link">...</span>
@@ -381,20 +561,20 @@
                                 {% endfor %}
 
                                 {% if recent_sales.has_next %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('main.index', page=recent_sales.next_num) }}">
-                                            <i class="bi bi-chevron-right"></i>
-                                        </a>
-                                    </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('main.index', page=recent_sales.next_num) }}">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
                                 {% endif %}
                             </ul>
                         </nav>
                         {% endif %}
                         {% else %}
-                        <div class="text-center py-4">
+                        <div class="text-center py-5">
                             <i class="bi bi-cart-x fs-1 text-muted"></i>
-                            <p class="text-muted mt-2 mb-0">No sales recorded yet.</p>
-                            <a href="{{ url_for('pos.pos_page') }}" class="btn btn-primary mt-2">
+                            <p class="text-muted mt-3 mb-3">No sales recorded yet.</p>
+                            <a href="{{ url_for('pos.pos_page') }}" class="btn btn-primary">
                                 <i class="bi bi-plus-circle"></i> Create First Sale
                             </a>
                         </div>
@@ -406,7 +586,7 @@
             <div class="col-lg-4 mb-4">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Low Stock Alert</h5>
+                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Low Stock Alert</h5>
                         {% if current_user.role in ['manager', 'admin'] %}
                             <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-primary btn-sm">
                                 <i class="bi bi-box-seam"></i> Manage
@@ -416,25 +596,24 @@
                     <div class="card-body">
                         {% if low_stock_list %}
                             {% for product in low_stock_list %}
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div>
-                                        <strong>{{ product.name }}</strong><br>
-                                        <small class="text-muted">{{ product.sku }}</small>
-                                    </div>
-                                    <div>
+                                <div class="stock-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>{{ product.name }}</strong><br>
+                                            <small class="text-muted">{{ product.sku }}</small>
+                                        </div>
                                         <span class="badge bg-{{ 'danger' if product.quantity == 0 else 'warning' }}">
                                             {{ product.quantity }} left
                                         </span>
                                     </div>
                                 </div>
-                                {% if not loop.last %}<hr class="my-2">{% endif %}
                             {% endfor %}
 
                             {% if low_stock_products > 10 %}
                                 <hr>
                                 <div class="text-center">
                                     <small class="text-muted">
-                                        Displaying the first 10 of {{ low_stock_products }} low stock items
+                                        Showing 10 of {{ low_stock_products }} low stock items
                                     </small>
                                 </div>
                             {% endif %}
@@ -456,17 +635,13 @@
 {% if current_user.role in ['manager', 'admin'] %}
 <script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
 <script>
-// Stock Value Chart initialization
+// Animate metric cards on load
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize chart if canvas exists
     const ctx = document.getElementById('stockValueChart');
     if (ctx) {
-        // Add your chart initialization code here
-        // Example:
-        // new Chart(ctx, {
-        //     type: 'bar',
-        //     data: {...},
-        //     options: {...}
-        // });
+        // Add your chart initialization here
+        console.log('Stock value chart canvas ready');
     }
 });
 </script>
