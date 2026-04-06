@@ -12,7 +12,7 @@ import os
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.Text)
+    password_hash = db.Column(db.String(255))
     role = db.Column(db.String(20), nullable=False, default='cashier')  # admin, manager, cashier
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
