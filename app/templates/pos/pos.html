@@ -1,78 +1,204 @@
 {% extends "base.html" %}
 
-{% block title %}Point of Sale - MY LORD ENTERPRISE POS SYSTEM{% endblock %}
+{% block title %}Point of Sale - MY LORD ENTERPRISE POS{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── POS Layout ── */
+    .pos-layout { display: flex; gap: 1.25rem; align-items: flex-start; }
+    .pos-products { flex: 1 1 0; min-width: 0; }
+    .pos-cart { width: 340px; flex-shrink: 0; position: sticky; top: calc(var(--navbar-h) + 1.25rem); }
+
+    @media (max-width: 992px) {
+        .pos-layout { flex-direction: column; }
+        .pos-cart { width: 100%; position: static; }
+    }
+
+    /* ── Search ── */
+    .pos-search {
+        position: relative;
+        margin-bottom: 1.25rem;
+    }
+    .pos-search .bi-search {
+        position: absolute;
+        left: 1rem; top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        pointer-events: none;
+    }
+    .pos-search input {
+        padding-left: 2.75rem !important;
+        border-radius: var(--radius-md) !important;
+        font-size: 0.9rem;
+        height: 44px;
+    }
+
+    /* ── Product cards ── */
+    .product-card {
+        border: 1.5px solid var(--border) !important;
+        border-radius: var(--radius-lg) !important;
+        overflow: hidden;
+        transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+        box-shadow: none !important;
+    }
+    .product-card:hover {
+        border-color: #93c5fd !important;
+        box-shadow: 0 4px 16px rgba(59,130,246,0.12) !important;
+        transform: translateY(-2px);
+    }
+
+    .product-card .card-img-top, .product-card .card-img-top.bg-light {
+        height: 200px !important;
+        object-fit: cover;
+    }
+
+    .product-card .card-img-top.bg-light {
+        background: var(--surface) !important;
+        display: flex; align-items: center; justify-content: center;
+    }
+
+    .product-card .card-body { padding: 0.85rem !important; }
+    .product-card .card-title { font-size: 0.875rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem; }
+
+    /* pricing grid */
+    .price-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; margin: 0.6rem 0; }
+    .price-cell { background: var(--surface); border-radius: 6px; padding: 0.3rem 0.2rem; text-align: center; }
+    .price-cell .pc-label { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-muted); }
+    .price-cell .pc-price { font-size: 0.82rem; font-weight: 700; color: #059669; line-height: 1.2; }
+    .price-cell .pc-profit { font-size: 0.65rem; color: #2563eb; }
+
+    /* add to cart buttons */
+    .cart-btns { display: flex; flex-direction: column; gap: 0.3rem; }
+    .cart-btns .btn { font-size: 0.78rem; padding: 0.4rem 0.6rem; justify-content: center; }
+
+    /* ── Cart ── */
+    .cart-header-card .card-header { background: linear-gradient(135deg, #059669, #10b981) !important; border: none; }
+    .cart-header-card .card-header h5 { color: #fff !important; }
+    .cart-header-card .card-header h5 i { color: rgba(255,255,255,0.6) !important; }
+
+    .cart-count {
+        background: rgba(255,255,255,0.25) !important;
+        color: #fff !important;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 0.25em 0.6em;
+    }
+
+    #cartItems { max-height: 400px; overflow-y: auto; padding: 0.85rem; }
+
+    .cart-item-row {
+        padding: 0.75rem;
+        background: var(--surface);
+        border-radius: var(--radius-md);
+        margin-bottom: 0.5rem;
+        font-size: 0.84rem;
+    }
+
+    .cart-item-row:last-child { margin-bottom: 0; }
+
+    .cart-summary {
+        border-top: 1px solid var(--border);
+        padding: 1rem;
+        background: var(--white);
+    }
+
+    .cart-total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+    .cart-total-label { font-size: 0.82rem; color: var(--text-muted); }
+    .cart-total-value { font-size: 1.1rem; font-weight: 800; color: #059669; }
+    .cart-profit-row  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; }
+    .cart-profit-label{ font-size: 0.78rem; color: var(--text-muted); }
+    .cart-profit-value{ font-size: 0.88rem; font-weight: 600; color: #2563eb; }
+
+    /* ── Empty state ── */
+    .empty-cart {
+        text-align: center;
+        padding: 2.5rem 1rem;
+        color: var(--text-muted);
+    }
+    .empty-cart .ec-icon {
+        width: 60px; height: 60px;
+        background: var(--surface);
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 0.75rem;
+        font-size: 1.5rem;
+    }
+    .empty-cart p { font-size: 0.84rem; margin: 0; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row">
-    <!-- Products Section -->
-    <div class="col-lg-8">
-        <div class="card h-100">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                    <i class="bi bi-box-seam"></i> Products
-                </h5>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 style="font-size:1.5rem;font-weight:800;color:var(--text-primary);letter-spacing:-0.4px">
+            <i class="bi bi-cart3" style="color:var(--gold)"></i> Point of Sale
+        </h2>
+    </div>
+</div>
+
+<div class="pos-layout">
+    <!-- Products Panel -->
+    <div class="pos-products">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-box-seam-fill"></i> Products</h5>
             </div>
             <div class="card-body">
-                <!-- Search Bar -->
-                <div class="mb-3">
-                    <div class="input-group">
-                        <span class="input-group-text">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input type="text" class="form-control" id="productSearch" placeholder="Search products by name or SKU...">
-                    </div>
+                <!-- Search -->
+                <div class="pos-search">
+                    <i class="bi bi-search"></i>
+                    <input type="text" class="form-control" id="productSearch" placeholder="Search by name or SKU…">
                 </div>
 
-                <!-- Products Grid -->
-                <div class="row" id="productsContainer">
+                <!-- Product Grid -->
+                <div class="row g-3" id="productsContainer">
                     {% for product in products %}
-                    <div class="col-md-6 col-lg-4 mb-3 product-item" data-name="{{ product.name.lower() }}" data-sku="{{ product.sku.lower() }}">
+                    <div class="col-md-6 col-lg-4 product-item" data-name="{{ product.name.lower() }}" data-sku="{{ product.sku.lower() }}">
                         <div class="card product-card h-100">
-                            <!-- Product Image -->
                             {% if product.has_image %}
-                            <img src="{{ product.image_url }}" class="card-img-top" alt="{{ product.name }}" style="height: 240px; object-fit: cover;">
+                            <img src="{{ product.image_url }}" class="card-img-top" alt="{{ product.name }}">
                             {% else %}
-                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 240px;">
-                                <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                            <div class="card-img-top bg-light">
+                                <i class="bi bi-image text-muted" style="font-size:2.5rem"></i>
                             </div>
                             {% endif %}
-                            
-                            <div class="card-body p-2">
-                                <h6 class="card-title text-truncate mb-1" title="{{ product.name }}">{{ product.name }}</h6>
-                                <p class="card-text small mb-2">
-                                    <small class="text-muted">SKU: {{ product.sku }}</small><br>
-                                    <small class="text-info">Stock: {{ product.quantity }} packs ({{ product.total_units_available|int }} units)</small>
-                                </p>
-                                
+
+                            <div class="card-body">
+                                <h6 class="card-title text-truncate" title="{{ product.name }}">{{ product.name }}</h6>
+                                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.4rem">
+                                    <code>{{ product.sku }}</code>
+                                    &nbsp;·&nbsp;
+                                    <span style="color:#0891b2">{{ product.quantity }} pks · {{ product.total_units_available|int }} units</span>
+                                </div>
+
                                 <!-- Pricing Grid -->
-                                <div class="mb-2" style="font-size: 0.85rem;">
-                                    <div class="row text-center g-1">
-                                        <div class="col-3">
-                                            <small class="text-muted d-block">Full</small>
-                                            <strong class="text-success">{{ "%.2f"|format(product.full_price) }}</strong>
-                                            <small class="text-primary d-block">+{{ "%.2f"|format(product.get_profit_for_unit('full')) }}</small>
-                                        </div>
-                                        <div class="col-3">
-                                            <small class="text-muted d-block">Half</small>
-                                            <strong class="text-success">{{ "%.2f"|format(product.half_price) }}</strong>
-                                            <small class="text-primary d-block">+{{ "%.2f"|format(product.get_profit_for_unit('half')) }}</small>
-                                        </div>
-                                        <div class="col-3">
-                                            <small class="text-muted d-block">Quarter</small>
-                                            <strong class="text-success">{{ "%.2f"|format(product.quarter_price) }}</strong>
-                                            <small class="text-primary d-block">+{{ "%.2f"|format(product.get_profit_for_unit('quarter')) }}</small>
-                                        </div>
-                                        <div class="col-3">
-                                            <small class="text-muted d-block">Unit</small>
-                                            <strong class="text-success">{{ "%.2f"|format(product.calculated_unit_price) }}</strong>
-                                            <small class="text-primary d-block">+{{ "%.2f"|format(product.get_profit_for_unit('unit')) }}</small>
-                                        </div>
+                                <div class="price-grid">
+                                    <div class="price-cell">
+                                        <div class="pc-label">Full</div>
+                                        <div class="pc-price">{{ "%.2f"|format(product.full_price) }}</div>
+                                        <div class="pc-profit">+{{ "%.2f"|format(product.get_profit_for_unit('full')) }}</div>
+                                    </div>
+                                    <div class="price-cell">
+                                        <div class="pc-label">Half</div>
+                                        <div class="pc-price">{{ "%.2f"|format(product.half_price) }}</div>
+                                        <div class="pc-profit">+{{ "%.2f"|format(product.get_profit_for_unit('half')) }}</div>
+                                    </div>
+                                    <div class="price-cell">
+                                        <div class="pc-label">Qtr</div>
+                                        <div class="pc-price">{{ "%.2f"|format(product.quarter_price) }}</div>
+                                        <div class="pc-profit">+{{ "%.2f"|format(product.get_profit_for_unit('quarter')) }}</div>
+                                    </div>
+                                    <div class="price-cell">
+                                        <div class="pc-label">Unit</div>
+                                        <div class="pc-price">{{ "%.2f"|format(product.calculated_unit_price) }}</div>
+                                        <div class="pc-profit">+{{ "%.2f"|format(product.get_profit_for_unit('unit')) }}</div>
                                     </div>
                                 </div>
 
-                                <!-- Add to Cart Buttons -->
-                                <div class="btn-group-vertical w-100" role="group">
-                                    <button class="btn btn-primary btn-sm add-to-cart-btn py-1" 
+                                <!-- Add to Cart -->
+                                <div class="cart-btns">
+                                    <button class="btn btn-primary add-to-cart-btn"
                                             data-product-id="{{ product.id }}"
                                             data-product-name="{{ product.name }}"
                                             data-product-price="{{ product.full_price }}"
@@ -82,10 +208,10 @@
                                             data-profit="{{ product.get_profit_for_unit('full') }}"
                                             data-units-per-pack="{{ product.units_per_pack }}"
                                             {% if product.quantity == 0 %}disabled{% endif %}>
-                                        <i class="bi bi-cart-plus"></i> Full Pack
+                                        <i class="bi bi-cart-plus"></i> Add Full Pack
                                     </button>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button class="btn btn-outline-primary btn-sm add-to-cart-btn py-1" 
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-outline-primary flex-fill add-to-cart-btn"
                                                 data-product-id="{{ product.id }}"
                                                 data-product-name="{{ product.name }}"
                                                 data-product-price="{{ product.half_price }}"
@@ -94,10 +220,8 @@
                                                 data-unit-type="half"
                                                 data-profit="{{ product.get_profit_for_unit('half') }}"
                                                 data-units-per-pack="{{ product.units_per_pack }}"
-                                                {% if product.quantity == 0 %}disabled{% endif %}>
-                                            Half
-                                        </button>
-                                        <button class="btn btn-outline-secondary btn-sm add-to-cart-btn py-1" 
+                                                {% if product.quantity == 0 %}disabled{% endif %}>Half</button>
+                                        <button class="btn btn-outline-secondary flex-fill add-to-cart-btn"
                                                 data-product-id="{{ product.id }}"
                                                 data-product-name="{{ product.name }}"
                                                 data-product-price="{{ product.quarter_price }}"
@@ -106,12 +230,9 @@
                                                 data-unit-type="quarter"
                                                 data-profit="{{ product.get_profit_for_unit('quarter') }}"
                                                 data-units-per-pack="{{ product.units_per_pack }}"
-                                                {% if product.quantity == 0 %}disabled{% endif %}>
-                                            Quarter
-                                        </button>
+                                                {% if product.quantity == 0 %}disabled{% endif %}>Qtr</button>
                                     </div>
-                                    <!-- NEW: Retail Unit Button -->
-                                    <button class="btn btn-success btn-sm add-to-cart-btn py-1" 
+                                    <button class="btn btn-success add-to-cart-btn"
                                             data-product-id="{{ product.id }}"
                                             data-product-name="{{ product.name }}"
                                             data-product-price="{{ product.calculated_unit_price }}"
@@ -122,7 +243,7 @@
                                             data-units-per-pack="{{ product.units_per_pack }}"
                                             data-total-units="{{ product.total_units_available|int }}"
                                             {% if product.quantity == 0 %}disabled{% endif %}>
-                                        <i class="bi bi-1-circle"></i> Single Unit ({{ product.units_per_pack }}/pack)
+                                        <i class="bi bi-1-circle"></i> Single Unit ({{ product.units_per_pack }}/pk)
                                     </button>
                                 </div>
                             </div>
@@ -133,53 +254,52 @@
 
                 {% if not products %}
                 <div class="text-center py-5">
-                    <i class="bi bi-box-seam" style="font-size: 3rem; color: #6c757d;"></i>
+                    <i class="bi bi-box-seam" style="font-size:3rem;color:var(--border)"></i>
                     <h5 class="mt-3 text-muted">No Products Available</h5>
-                    <p class="text-muted">No products are currently in stock.</p>
+                    <p class="text-muted" style="font-size:0.84rem">No products are currently in stock.</p>
                 </div>
                 {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Cart Section -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">
-                    <i class="bi bi-cart"></i> Cart
-                </h5>
-                <span class="badge bg-light text-dark" id="cartCount">0</span>
+    <!-- Cart Panel -->
+    <div class="pos-cart">
+        <div class="card cart-header-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="bi bi-cart3"></i> Cart</h5>
+                <span class="badge cart-count" id="cartCount">0</span>
             </div>
-            <div class="card-body p-0">
-                <div id="cartItems" style="max-height: 400px; overflow-y: auto; padding: 1rem;">
-                    <div class="text-center text-muted py-4" id="emptyCart">
-                        <i class="bi bi-cart" style="font-size: 2rem;"></i>
-                        <p class="mt-2">Your cart is empty</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card-footer bg-light" id="cartSummary" style="display: none;">
-                <div class="d-flex justify-content-between mb-2">
-                    <span class="h6">Subtotal:</span>
-                    <strong class="h6 text-success" id="cartTotal">GHS 0.00</strong>
-                </div>
-                <div class="d-flex justify-content-between mb-3">
-                    <span class="small text-muted">Total Profit:</span>
-                    <strong class="small text-primary" id="cartProfit">GHS 0.00</strong>
-                </div>
 
-                <div class="d-grid gap-2">
-                    <button type="button" class="btn btn-warning btn-sm" id="previewBtn">
-                        <i class="bi bi-eye"></i> Preview Sale
-                    </button>
-                    <button type="button" class="btn btn-success" id="checkoutBtn">
-                        <i class="bi bi-credit-card"></i> Process Payment
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="clearCartBtn">
-                        <i class="bi bi-trash"></i> Clear Cart
-                    </button>
+            <div id="cartItems">
+                <div class="empty-cart" id="emptyCart">
+                    <div class="ec-icon"><i class="bi bi-cart3"></i></div>
+                    <p>Your cart is empty</p>
+                </div>
+            </div>
+
+            <div id="cartSummary" style="display:none">
+                <div class="cart-summary">
+                    <div class="cart-total-row">
+                        <span class="cart-total-label">Subtotal</span>
+                        <span class="cart-total-value" id="cartTotal">GHS 0.00</span>
+                    </div>
+                    <div class="cart-profit-row">
+                        <span class="cart-profit-label">Est. Profit</span>
+                        <span class="cart-profit-value" id="cartProfit">GHS 0.00</span>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-warning" id="previewBtn">
+                            <i class="bi bi-eye"></i> Preview Sale
+                        </button>
+                        <button type="button" class="btn btn-success" id="checkoutBtn">
+                            <i class="bi bi-credit-card"></i> Process Payment
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="clearCartBtn">
+                            <i class="bi bi-trash3"></i> Clear Cart
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -190,47 +310,46 @@
 <div class="modal fade" id="paymentModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-credit-card"></i> Process Payment
-                </h5>
+            <div class="modal-header bg-success">
+                <h5 class="modal-title"><i class="bi bi-credit-card"></i> Process Payment</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <h4 class="text-center mb-3">Total Amount: <span class="text-success" id="paymentTotal">GHS 0.00</span></h4>
+                <div class="mb-3 text-center">
+                    <div style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted)">Total Amount</div>
+                    <div style="font-size:2rem;font-weight:800;color:#059669;letter-spacing:-1px" id="paymentTotal">GHS 0.00</div>
                 </div>
-                
+
                 <form id="paymentForm">
                     <div class="mb-3">
-                        <label for="paymentMethod" class="form-label">Payment Method</label>
+                        <label class="form-label">Payment Method</label>
                         <select class="form-select" id="paymentMethod" required>
                             <option value="cash">Cash</option>
-                            <option value="card">Credit/Debit Card</option>
+                            <option value="card">Credit / Debit Card</option>
                             <option value="mobile_money">Mobile Money</option>
                             <option value="bank_transfer">Bank Transfer</option>
                         </select>
                     </div>
-                    
+
                     <div class="mb-3" id="cashPaymentSection">
-                        <label for="amountPaid" class="form-label">Amount Paid</label>
+                        <label class="form-label">Amount Paid</label>
                         <div class="input-group">
                             <span class="input-group-text">GHS</span>
                             <input type="number" class="form-control" id="amountPaid" step="0.01" min="0" required>
                         </div>
-                        <div id="changeDisplay" class="mt-2" style="display: none;">
-                            <strong class="text-info">Change: <span id="changeAmount">GHS 0.00</span></strong>
+                        <div id="changeDisplay" class="mt-2 p-2 rounded" style="background:var(--surface);display:none">
+                            <strong style="font-size:0.9rem">Change: <span id="changeAmount">GHS 0.00</span></strong>
                         </div>
                     </div>
-                    
+
                     <div class="mb-3">
-                        <label for="saleStatus" class="form-label">Sale Status</label>
+                        <label class="form-label">Sale Status</label>
                         <select class="form-select" id="saleStatus">
                             <option value="completed">Completed</option>
                             <option value="pending">Pending</option>
                         </select>
-                        <div class="form-text">
-                            <strong>Completed:</strong> Items deducted from inventory<br>
+                        <div class="form-text" style="font-size:0.78rem">
+                            <strong>Completed:</strong> Items deducted from inventory &nbsp;·&nbsp;
                             <strong>Pending:</strong> Items remain in inventory
                         </div>
                     </div>
@@ -251,14 +370,10 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="bi bi-eye"></i> Sale Preview
-                </h5>
+                <h5 class="modal-title"><i class="bi bi-eye"></i> Sale Preview</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="previewContent">
-                <!-- Preview content will be loaded here -->
-            </div>
+            <div class="modal-body" id="previewContent"></div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-success" id="proceedToPaymentBtn">
                     <i class="bi bi-credit-card"></i> Proceed to Payment
@@ -275,15 +390,11 @@
 <div class="modal fade" id="successModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-check-circle"></i> Sale Completed
-                </h5>
+            <div class="modal-header bg-success">
+                <h5 class="modal-title"><i class="bi bi-check-circle"></i> Sale Completed</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center" id="successContent">
-                <!-- Success content will be loaded here -->
-            </div>
+            <div class="modal-body text-center" id="successContent"></div>
             <div class="modal-footer">
                 <a href="#" class="btn btn-primary" id="receiptBtn" target="_blank">
                     <i class="bi bi-receipt"></i> View Receipt
@@ -318,603 +429,319 @@ class POSSystem {
         try {
             const response = await fetch(`/pos/load-pending-sale/${saleId}`);
             const data = await response.json();
-            
             if (data.success) {
-                this.cart = [];
                 this.cart = data.cart_items.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    price: parseFloat(item.price),
-                    quantity: item.quantity,
-                    stock: parseFloat(item.stock),
-                    sku: item.sku,
-                    unit_type: item.unit_type,
-                    profit: parseFloat(item.profit),
-                    units_per_pack: item.units_per_pack || 1,
-                    total_units: item.total_units || 0
+                    id: item.id, name: item.name, price: parseFloat(item.price),
+                    quantity: item.quantity, stock: parseFloat(item.stock),
+                    sku: item.sku, unit_type: item.unit_type, profit: parseFloat(item.profit),
+                    units_per_pack: item.units_per_pack || 1, total_units: item.total_units || 0
                 }));
                 this.continuingSaleId = saleId;
                 this.updateCartDisplay();
                 this.showAlert(`Loaded pending sale ${data.sale_info.invoice_number}`, 'success');
-            } else {
-                this.showAlert(data.error || 'Failed to load pending sale', 'danger');
-            }
-        } catch (error) {
-            console.error('Load pending sale error:', error);
-            this.showAlert('Failed to load pending sale', 'danger');
-        }
+            } else { this.showAlert(data.error || 'Failed to load pending sale', 'danger'); }
+        } catch (error) { this.showAlert('Failed to load pending sale', 'danger'); }
     }
 
     bindEvents() {
         document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const target = e.currentTarget;
-                const productData = {
-                    id: parseInt(target.dataset.productId),
-                    name: target.dataset.productName,
-                    price: parseFloat(target.dataset.productPrice),
-                    stock: parseFloat(target.dataset.productStock),
-                    sku: target.dataset.productSku,
-                    unit_type: target.dataset.unitType,
-                    profit: parseFloat(target.dataset.profit),
-                    units_per_pack: parseInt(target.dataset.unitsPerPack || 1),
-                    total_units: parseInt(target.dataset.totalUnits || 0)
-                };
-                
-                console.log('Adding product to cart:', productData);
-                this.addToCart(productData);
+                const t = e.currentTarget;
+                this.addToCart({
+                    id: parseInt(t.dataset.productId), name: t.dataset.productName,
+                    price: parseFloat(t.dataset.productPrice), stock: parseFloat(t.dataset.productStock),
+                    sku: t.dataset.productSku, unit_type: t.dataset.unitType,
+                    profit: parseFloat(t.dataset.profit),
+                    units_per_pack: parseInt(t.dataset.unitsPerPack || 1),
+                    total_units: parseInt(t.dataset.totalUnits || 0)
+                });
             });
         });
 
-        const searchInput = document.getElementById('productSearch');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.filterProducts(e.target.value);
-            });
-        }
+        const si = document.getElementById('productSearch');
+        if (si) si.addEventListener('input', e => this.filterProducts(e.target.value));
 
-        const previewBtn = document.getElementById('previewBtn');
-        const checkoutBtn = document.getElementById('checkoutBtn');
-        const clearCartBtn = document.getElementById('clearCartBtn');
-        const proceedToPaymentBtn = document.getElementById('proceedToPaymentBtn');
-        const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
-        const newSaleBtn = document.getElementById('newSaleBtn');
+        const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+        bind('previewBtn',         () => this.previewSale());
+        bind('checkoutBtn',        () => this.showPaymentModal());
+        bind('clearCartBtn',       () => this.clearCart());
+        bind('proceedToPaymentBtn',() => this.proceedToPayment());
+        bind('confirmPaymentBtn',  () => this.confirmPayment());
+        bind('newSaleBtn',         () => this.clearCart());
 
-        if (previewBtn) previewBtn.addEventListener('click', () => this.previewSale());
-        if (checkoutBtn) checkoutBtn.addEventListener('click', () => this.showPaymentModal());
-        if (clearCartBtn) clearCartBtn.addEventListener('click', () => this.clearCart());
-        if (proceedToPaymentBtn) proceedToPaymentBtn.addEventListener('click', () => this.proceedToPayment());
-        if (confirmPaymentBtn) confirmPaymentBtn.addEventListener('click', () => this.confirmPayment());
-        if (newSaleBtn) newSaleBtn.addEventListener('click', () => this.clearCart());
-
-        const paymentMethod = document.getElementById('paymentMethod');
-        const amountPaid = document.getElementById('amountPaid');
-        
-        if (paymentMethod) {
-            paymentMethod.addEventListener('change', () => this.handlePaymentMethodChange());
-        }
-        
-        if (amountPaid) {
-            amountPaid.addEventListener('input', () => this.calculateChange());
-        }
+        const pm = document.getElementById('paymentMethod');
+        const ap = document.getElementById('amountPaid');
+        if (pm) pm.addEventListener('change', () => this.handlePaymentMethodChange());
+        if (ap) ap.addEventListener('input', () => this.calculateChange());
     }
 
     addToCart(product) {
-        // Ensure all numeric values are properly parsed
         const cartItem = {
-            id: parseInt(product.id),
-            name: product.name,
-            price: parseFloat(product.price),
-            quantity: 1,
-            stock: parseFloat(product.stock),
-            sku: product.sku,
-            unit_type: product.unit_type,
-            profit: parseFloat(product.profit),
+            id: parseInt(product.id), name: product.name,
+            price: parseFloat(product.price), quantity: 1,
+            stock: parseFloat(product.stock), sku: product.sku,
+            unit_type: product.unit_type, profit: parseFloat(product.profit),
             units_per_pack: parseInt(product.units_per_pack) || 1,
             total_units: parseInt(product.total_units) || 0
         };
-
-        console.log('Cart item to add:', cartItem);
-
         const cartKey = `${cartItem.id}_${cartItem.unit_type}`;
         const existingItem = this.cart.find(item => `${item.id}_${item.unit_type}` === cartKey);
-        
         if (existingItem) {
-            // Check stock limits based on unit type
-            let canAdd = false;
             if (cartItem.unit_type === 'unit') {
-                // For retail units, check against total units available
-                const unitsInCart = this.cart
-                    .filter(item => item.id === cartItem.id && item.unit_type === 'unit')
-                    .reduce((sum, item) => sum + item.quantity, 0);
-                canAdd = (unitsInCart + 1) <= cartItem.total_units;
-                
-                if (!canAdd) {
-                    this.showAlert(`Cannot add more items. Only ${cartItem.total_units} units available!`, 'warning');
-                    return;
-                }
+                const unitsInCart = this.cart.filter(i => i.id === cartItem.id && i.unit_type === 'unit').reduce((s,i) => s + i.quantity, 0);
+                if ((unitsInCart + 1) > cartItem.total_units) { this.showAlert(`Only ${cartItem.total_units} units available!`, 'warning'); return; }
             } else {
-                // For packs, check against pack quantity
-                canAdd = existingItem.quantity < cartItem.stock;
-                
-                if (!canAdd) {
-                    this.showAlert('Cannot add more items. Insufficient stock!', 'warning');
-                    return;
-                }
+                if (existingItem.quantity >= cartItem.stock) { this.showAlert('Insufficient stock!', 'warning'); return; }
             }
-            
             existingItem.quantity++;
         } else {
             if (cartItem.stock > 0 || (cartItem.unit_type === 'unit' && cartItem.total_units > 0)) {
                 this.cart.push(cartItem);
-            } else {
-                this.showAlert('Product is out of stock!', 'warning');
-                return;
-            }
+            } else { this.showAlert('Product is out of stock!', 'warning'); return; }
         }
-        
-        console.log('Cart after adding:', this.cart);
         this.updateCartDisplay();
-        this.showAlert(`${this.getUnitDisplayName(cartItem.unit_type)} added to cart!`, 'success');
+        this.showAlert(`${this.getUnitDisplayName(cartItem.unit_type)} added!`, 'success');
     }
 
     removeFromCart(productId, unitType) {
         this.cart = this.cart.filter(item => !(item.id === productId && item.unit_type === unitType));
-        console.log('Cart after removing:', this.cart);
         this.updateCartDisplay();
     }
 
     updateQuantity(productId, unitType, newQuantity) {
-        const item = this.cart.find(item => item.id === productId && item.unit_type === unitType);
-        if (item) {
-            if (newQuantity <= 0) {
-                this.removeFromCart(productId, unitType);
-            } else {
-                // Validate stock limits
-                let maxAllowed;
-                if (unitType === 'unit') {
-                    maxAllowed = item.total_units;
-                } else {
-                    maxAllowed = item.stock;
-                }
-                
-                if (newQuantity <= maxAllowed) {
-                    item.quantity = newQuantity;
-                    console.log('Cart after quantity update:', this.cart);
-                    this.updateCartDisplay();
-                } else {
-                    const stockMsg = unitType === 'unit'
-                        ? `Only ${maxAllowed} units available!`
-                        : `Only ${maxAllowed} packs available!`;
-                    this.showAlert(`Cannot add more. ${stockMsg}`, 'warning');
-                }
-            }
-        }
+        const item = this.cart.find(i => i.id === productId && i.unit_type === unitType);
+        if (!item) return;
+        if (newQuantity <= 0) { this.removeFromCart(productId, unitType); return; }
+        const maxAllowed = unitType === 'unit' ? item.total_units : item.stock;
+        if (newQuantity <= maxAllowed) { item.quantity = newQuantity; this.updateCartDisplay(); }
+        else { this.showAlert(`Only ${maxAllowed} available!`, 'warning'); }
     }
 
-    getUnitDisplayName(unitType) {
-        const unitMap = {
-            'full': 'Full Pack',
-            'half': 'Half Pack',
-            'quarter': 'Quarter Pack',
-            'unit': 'Retail Unit'
-        };
-        return unitMap[unitType] || 'Full Pack';
+    getUnitDisplayName(u) {
+        return { full:'Full Pack', half:'Half Pack', quarter:'Quarter Pack', unit:'Retail Unit' }[u] || 'Full Pack';
     }
 
-    calculateCartTotal() {
-        const total = this.cart.reduce((sum, item) => {
-            const itemTotal = parseFloat(item.price) * parseInt(item.quantity);
-            return sum + itemTotal;
-        }, 0);
-        return total;
-    }
-
-    calculateCartProfit() {
-        const profit = this.cart.reduce((sum, item) => {
-            const itemProfit = parseFloat(item.profit) * parseInt(item.quantity);
-            return sum + itemProfit;
-        }, 0);
-        return profit;
-    }
+    calculateCartTotal()  { return this.cart.reduce((s,i) => s + parseFloat(i.price) * parseInt(i.quantity), 0); }
+    calculateCartProfit() { return this.cart.reduce((s,i) => s + parseFloat(i.profit) * parseInt(i.quantity), 0); }
 
     updateCartDisplay() {
-        const cartItemsContainer = document.getElementById('cartItems');
-        const cartCountBadge = document.getElementById('cartCount');
-        const cartTotalElement = document.getElementById('cartTotal');
-        const cartProfitElement = document.getElementById('cartProfit');
+        const cartItems = document.getElementById('cartItems');
+        const cartCount = document.getElementById('cartCount');
+        const cartTotal = document.getElementById('cartTotal');
+        const cartProfit = document.getElementById('cartProfit');
         const cartSummary = document.getElementById('cartSummary');
 
-        if (!cartItemsContainer || !cartCountBadge || !cartTotalElement) {
-            console.error('Required cart elements not found');
-            return;
-        }
-
         if (this.cart.length === 0) {
-            cartItemsContainer.innerHTML = `
-                <div class="text-center text-muted py-4" id="emptyCart">
-                    <i class="bi bi-cart" style="font-size: 2rem;"></i>
-                    <p class="mt-2">Your cart is empty</p>
-                </div>`;
+            cartItems.innerHTML = `<div class="empty-cart" id="emptyCart">
+                <div class="ec-icon"><i class="bi bi-cart3"></i></div>
+                <p>Your cart is empty</p></div>`;
             if (cartSummary) cartSummary.style.display = 'none';
-            cartCountBadge.textContent = '0';
+            cartCount.textContent = '0';
             this.continuingSaleId = null;
             return;
         }
 
         if (cartSummary) cartSummary.style.display = 'block';
+        cartCount.textContent = this.cart.reduce((s,i) => s + parseInt(i.quantity), 0);
+        cartTotal.textContent  = `GHS ${this.calculateCartTotal().toFixed(2)}`;
+        cartProfit.textContent = `GHS ${this.calculateCartProfit().toFixed(2)}`;
 
-        const totalItems = this.cart.reduce((sum, item) => sum + parseInt(item.quantity), 0);
-        cartCountBadge.textContent = totalItems;
+        const continuingBanner = this.continuingSaleId
+            ? `<div class="alert alert-info mx-3 mt-3 mb-0 p-2" style="font-size:0.78rem"><i class="bi bi-arrow-clockwise"></i> Continuing pending sale</div>` : '';
 
-        const total = this.calculateCartTotal();
-        const totalProfit = this.calculateCartProfit();
-        
-        console.log('Cart display - Total:', total, 'Profit:', totalProfit);
-        
-        cartTotalElement.textContent = `GHS ${total.toFixed(2)}`;
-        if (cartProfitElement) cartProfitElement.textContent = `GHS ${totalProfit.toFixed(2)}`;
-
-        const continuingIndicator = this.continuingSaleId ? 
-            `<div class="alert alert-info alert-sm mb-2">
-                <small><i class="bi bi-arrow-clockwise"></i> Continuing pending sale</small>
-            </div>` : '';
-
-        cartItemsContainer.innerHTML = continuingIndicator + this.cart.map(item => {
-            const lineTotal = parseFloat(item.price) * parseInt(item.quantity);
+        cartItems.innerHTML = continuingBanner + this.cart.map(item => {
+            const lineTotal  = parseFloat(item.price) * parseInt(item.quantity);
             const lineProfit = parseFloat(item.profit) * parseInt(item.quantity);
-            
             return `
-                <div class="border-bottom pb-2 mb-2 cart-item">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1 me-2">
-                            <h6 class="mb-1 small fw-bold">${item.name}</h6>
-                            <div class="text-muted small">
-                                <span class="badge bg-info">${this.getUnitDisplayName(item.unit_type)}</span><br>
-                                <span>GHS ${parseFloat(item.price).toFixed(2)} × ${item.quantity}</span><br>
-                                <span class="text-primary">Profit: GHS ${lineProfit.toFixed(2)}</span>
-                            </div>
-                        </div>
-                        <div class="text-end">
-                            <div class="text-success fw-bold small mb-1">GHS ${lineTotal.toFixed(2)}</div>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button class="btn btn-outline-secondary btn-sm py-0 px-1" type="button" onclick="pos.updateQuantity(${item.id}, '${item.unit_type}', ${item.quantity - 1})">-</button>
-                                <span class="btn btn-outline-secondary btn-sm py-0 px-2 disabled">${item.quantity}</span>
-                                <button class="btn btn-outline-secondary btn-sm py-0 px-1" type="button" onclick="pos.updateQuantity(${item.id}, '${item.unit_type}', ${item.quantity + 1})">+</button>
-                                <button class="btn btn-outline-danger btn-sm py-0 px-1 ms-1" onclick="pos.removeFromCart(${item.id}, '${item.unit_type}')">×</button>
-                            </div>
-                        </div>
+            <div class="cart-item-row">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <div style="font-weight:700;font-size:0.84rem;color:var(--text-primary)">${item.name}</div>
+                        <span class="badge bg-info" style="margin-top:0.2rem">${this.getUnitDisplayName(item.unit_type)}</span>
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-weight:800;color:#059669;font-size:0.9rem">GHS ${lineTotal.toFixed(2)}</div>
+                        <div style="font-size:0.72rem;color:#2563eb">+${lineProfit.toFixed(2)}</div>
                     </div>
                 </div>
-            `;
+                <div class="d-flex justify-content-between align-items-center">
+                    <span style="font-size:0.76rem;color:var(--text-muted)">GHS ${parseFloat(item.price).toFixed(2)} each</span>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary py-0 px-2" onclick="pos.updateQuantity(${item.id},'${item.unit_type}',${item.quantity-1})" style="font-size:0.85rem">−</button>
+                        <span class="btn btn-outline-secondary disabled py-0 px-2" style="font-size:0.82rem;font-weight:700">${item.quantity}</span>
+                        <button class="btn btn-outline-secondary py-0 px-2" onclick="pos.updateQuantity(${item.id},'${item.unit_type}',${item.quantity+1})" style="font-size:0.85rem">+</button>
+                        <button class="btn btn-outline-danger py-0 px-2 ms-1" onclick="pos.removeFromCart(${item.id},'${item.unit_type}')" style="font-size:0.82rem">×</button>
+                    </div>
+                </div>
+            </div>`;
         }).join('');
     }
 
     async previewSale() {
-        if (this.cart.length === 0) {
-            this.showAlert('Cart is empty!', 'warning');
-            return;
-        }
-
+        if (!this.cart.length) { this.showAlert('Cart is empty!', 'warning'); return; }
         try {
-            const payload = {
-                items: this.cart.map(item => ({
-                    product_id: parseInt(item.id),
-                    quantity: parseInt(item.quantity),
-                    unit_type: item.unit_type
-                }))
-            };
-
-            console.log('Preview payload:', payload);
-
-            const response = await fetch('/pos/preview', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload)
-            });
-
+            const payload = { items: this.cart.map(i => ({ product_id: parseInt(i.id), quantity: parseInt(i.quantity), unit_type: i.unit_type })) };
+            const response = await fetch('/pos/preview', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
             const data = await response.json();
-            console.log('Preview response:', data);
-            
-            if (data.success) {
-                this.showPreview(data);
-            } else {
-                this.showAlert(data.error || 'Failed to preview sale', 'danger');
-            }
-        } catch (error) {
-            console.error('Preview error:', error);
-            this.showAlert('Failed to preview sale', 'danger');
-        }
+            if (data.success) this.showPreview(data);
+            else this.showAlert(data.error || 'Failed to preview sale', 'danger');
+        } catch (e) { this.showAlert('Failed to preview sale', 'danger'); }
     }
 
     showPreview(previewData) {
-        const previewContent = document.getElementById('previewContent');
-        if (!previewContent) return;
-
-        const continuingInfo = this.continuingSaleId ? 
-            `<div class="alert alert-info">
-                <i class="bi bi-info-circle"></i> This will update the existing pending sale.
-            </div>` : '';
-
-        previewContent.innerHTML = continuingInfo + `
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Unit</th>
-                            <th>Price</th>
-                            <th>Qty</th>
-                            <th>Profit</th>
-                            <th class="text-end">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${previewData.items.map(item => `
-                            <tr>
-                                <td>
-                                    <strong>${item.product_name}</strong><br>
-                                    <small class="text-muted">${item.sku}</small>
-                                </td>
-                                <td><span class="badge bg-info">${this.getUnitDisplayName(item.unit_type)}</span></td>
-                                <td>GHS ${parseFloat(item.price).toFixed(2)}</td>
-                                <td>${item.quantity}</td>
-                                <td class="text-primary">GHS ${parseFloat(item.line_profit).toFixed(2)}</td>
-                                <td class="text-end">GHS ${parseFloat(item.line_total).toFixed(2)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr class="table-light">
-                            <th colspan="4">Totals:</th>
-                            <th class="text-primary">GHS ${parseFloat(previewData.total_profit).toFixed(2)}</th>
-                            <th class="text-end text-success">GHS ${parseFloat(previewData.total).toFixed(2)}</th>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        `;
-
-        const previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
-        previewModal.show();
+        const pc = document.getElementById('previewContent');
+        if (!pc) return;
+        const continuingInfo = this.continuingSaleId ? `<div class="alert alert-info"><i class="bi bi-info-circle"></i> This will update the existing pending sale.</div>` : '';
+        pc.innerHTML = continuingInfo + `
+        <div class="table-responsive">
+            <table class="table">
+                <thead><tr><th>Product</th><th>Unit</th><th>Price</th><th>Qty</th><th>Profit</th><th class="text-end">Total</th></tr></thead>
+                <tbody>${previewData.items.map(item => `
+                    <tr>
+                        <td><strong>${item.product_name}</strong><br><small class="text-muted">${item.sku}</small></td>
+                        <td><span class="badge bg-info">${this.getUnitDisplayName(item.unit_type)}</span></td>
+                        <td>GHS ${parseFloat(item.price).toFixed(2)}</td>
+                        <td>${item.quantity}</td>
+                        <td class="text-primary">GHS ${parseFloat(item.line_profit).toFixed(2)}</td>
+                        <td class="text-end">GHS ${parseFloat(item.line_total).toFixed(2)}</td>
+                    </tr>`).join('')}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="4">Totals</th>
+                        <th class="text-primary">GHS ${parseFloat(previewData.total_profit).toFixed(2)}</th>
+                        <th class="text-end text-success">GHS ${parseFloat(previewData.total).toFixed(2)}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>`;
+        new bootstrap.Modal(document.getElementById('previewModal')).show();
     }
 
     showPaymentModal() {
-        if (this.cart.length === 0) {
-            this.showAlert('Cart is empty!', 'warning');
-            return;
-        }
-
+        if (!this.cart.length) { this.showAlert('Cart is empty!', 'warning'); return; }
         const total = this.calculateCartTotal();
-        console.log('Payment modal - Cart total:', total);
-        console.log('Payment modal - Cart:', this.cart);
-        
-        const paymentTotalElement = document.getElementById('paymentTotal');
-        const amountPaidInput = document.getElementById('amountPaid');
-        
-        if (paymentTotalElement) {
-            paymentTotalElement.textContent = `GHS ${total.toFixed(2)}`;
-        }
-        
-        if (amountPaidInput) {
-            amountPaidInput.value = total.toFixed(2);
-        }
-        
-        const paymentModalBody = document.querySelector('#paymentModal .modal-body');
-        const existingAlert = paymentModalBody.querySelector('.alert-info');
-        if (existingAlert) existingAlert.remove();
-        
+        document.getElementById('paymentTotal').textContent = `GHS ${total.toFixed(2)}`;
+        document.getElementById('amountPaid').value = total.toFixed(2);
+        const body = document.querySelector('#paymentModal .modal-body');
+        const existing = body.querySelector('.alert-info');
+        if (existing) existing.remove();
         if (this.continuingSaleId) {
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-info';
-            alertDiv.innerHTML = '<i class="bi bi-info-circle"></i> This will update the existing pending sale.';
-            paymentModalBody.insertBefore(alertDiv, paymentModalBody.firstChild);
+            const a = document.createElement('div');
+            a.className = 'alert alert-info mb-3';
+            a.innerHTML = '<i class="bi bi-info-circle"></i> This will update the existing pending sale.';
+            body.insertBefore(a, body.firstChild);
         }
-        
         this.handlePaymentMethodChange();
         this.calculateChange();
-
-        const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
-        paymentModal.show();
+        new bootstrap.Modal(document.getElementById('paymentModal')).show();
     }
 
     proceedToPayment() {
-        const previewModal = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
-        if (previewModal) previewModal.hide();
-        
-        setTimeout(() => {
-            this.showPaymentModal();
-        }, 300);
+        const pm = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
+        if (pm) pm.hide();
+        setTimeout(() => this.showPaymentModal(), 300);
     }
 
     handlePaymentMethodChange() {
-        const paymentMethod = document.getElementById('paymentMethod').value;
-        const cashSection = document.getElementById('cashPaymentSection');
-        const amountPaid = document.getElementById('amountPaid');
-        
-        if (cashSection) {
-            cashSection.style.display = 'block';
-        }
-        
-        if (amountPaid) {
-            const total = this.calculateCartTotal();
-            amountPaid.value = total.toFixed(2);
-            amountPaid.required = true;
-        }
-        
+        const total = this.calculateCartTotal();
+        document.getElementById('amountPaid').value = total.toFixed(2);
         this.calculateChange();
     }
 
     calculateChange() {
         const total = this.calculateCartTotal();
-        const amountPaidInput = document.getElementById('amountPaid');
-        const amountPaid = parseFloat(amountPaidInput?.value) || 0;
-        const change = amountPaid - total;
-        
-        const changeDisplay = document.getElementById('changeDisplay');
-        const changeAmount = document.getElementById('changeAmount');
-        const confirmBtn = document.getElementById('confirmPaymentBtn');
-        
-        if (changeDisplay && changeAmount && confirmBtn) {
+        const paid  = parseFloat(document.getElementById('amountPaid')?.value) || 0;
+        const change = paid - total;
+        const cd = document.getElementById('changeDisplay');
+        const ca = document.getElementById('changeAmount');
+        const cb = document.getElementById('confirmPaymentBtn');
+        if (cd && ca && cb) {
             if (change >= 0) {
-                changeAmount.textContent = `GHS ${change.toFixed(2)}`;
-                changeAmount.className = 'text-success';
-                changeDisplay.style.display = 'block';
-                confirmBtn.disabled = false;
+                ca.textContent = `GHS ${change.toFixed(2)}`;
+                ca.style.color = '#059669';
+                cd.style.display = 'block';
+                cb.disabled = false;
             } else {
-                changeAmount.textContent = `GHS ${Math.abs(change).toFixed(2)} short`;
-                changeAmount.className = 'text-danger';
-                changeDisplay.style.display = 'block';
-                confirmBtn.disabled = true;
+                ca.textContent = `GHS ${Math.abs(change).toFixed(2)} short`;
+                ca.style.color = '#dc2626';
+                cd.style.display = 'block';
+                cb.disabled = true;
             }
         }
     }
 
     async confirmPayment() {
-        if (this.cart.length === 0) {
-            this.showAlert('Cart is empty!', 'warning');
-            return;
-        }
-
-        const confirmBtn = document.getElementById('confirmPaymentBtn');
-        if (confirmBtn) {
-            confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
-        }
-
+        if (!this.cart.length) { this.showAlert('Cart is empty!', 'warning'); return; }
+        const btn = document.getElementById('confirmPaymentBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing…'; }
         try {
-            const paymentMethod = document.getElementById('paymentMethod').value;
-            const amountPaidInput = document.getElementById('amountPaid');
-            const amountPaid = parseFloat(amountPaidInput?.value) || 0;
-            const status = document.getElementById('saleStatus')?.value || 'completed';
             const total = this.calculateCartTotal();
-            const change = Math.max(0, amountPaid - total);
-            
+            const paid  = parseFloat(document.getElementById('amountPaid')?.value) || 0;
             const payload = {
-                items: this.cart.map(item => ({
-                    product_id: parseInt(item.id),
-                    quantity: parseInt(item.quantity),
-                    unit_type: item.unit_type
-                })),
-                payment_method: paymentMethod,
-                amount_paid: amountPaid,
-                change_given: change,
-                status: status
+                items: this.cart.map(i => ({ product_id: parseInt(i.id), quantity: parseInt(i.quantity), unit_type: i.unit_type })),
+                payment_method: document.getElementById('paymentMethod').value,
+                amount_paid: paid, change_given: Math.max(0, paid - total),
+                status: document.getElementById('saleStatus')?.value || 'completed'
             };
-
-            console.log('Checkout payload:', payload);
-            console.log('Frontend calculated total:', total);
-            console.log('Amount paid:', amountPaid);
-            
-            const response = await fetch('/pos/checkout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload)
-            });
-
+            const response = await fetch('/pos/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
             const data = await response.json();
-            console.log('Checkout response:', data);
-            
             if (data.success) {
-                const paymentModal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
-                if (paymentModal) paymentModal.hide();
-                
+                bootstrap.Modal.getInstance(document.getElementById('paymentModal'))?.hide();
                 this.showSuccess(data);
                 this.clearCart();
-            } else {
-                this.showAlert(data.error || 'Failed to complete sale', 'danger');
-            }
-        } catch (error) {
-            console.error('Checkout error:', error);
-            this.showAlert('Failed to complete sale: ' + error.message, 'danger');
-        } finally {
-            if (confirmBtn) {
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> Complete Sale';
-            }
-        }
+            } else { this.showAlert(data.error || 'Failed to complete sale', 'danger'); }
+        } catch (e) { this.showAlert('Failed to complete sale: ' + e.message, 'danger'); }
+        finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle"></i> Complete Sale'; } }
     }
 
     showSuccess(data) {
-        const successContent = document.getElementById('successContent');
-        const receiptBtn = document.getElementById('receiptBtn');
-        
-        if (successContent) {
-            successContent.innerHTML = `
-                <div class="mb-3">
-                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+        const sc = document.getElementById('successContent');
+        const rb = document.getElementById('receiptBtn');
+        if (sc) {
+            sc.innerHTML = `
+            <div class="py-3">
+                <div style="width:64px;height:64px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem">
+                    <i class="bi bi-check-lg" style="color:#059669;font-size:1.8rem"></i>
                 </div>
-                <h5>Sale ${data.invoice_number || `#${data.sale_id}`} ${this.continuingSaleId ? 'updated' : 'completed'} successfully!</h5>
-                <div class="row text-center mt-3">
+                <h5 style="font-weight:800;color:var(--text-primary)">Sale ${data.invoice_number || '#'+data.sale_id} completed!</h5>
+                <div class="row g-3 mt-2">
                     <div class="col-6">
-                        <p class="text-muted mb-1">Total Amount</p>
-                        <strong class="text-success">GHS ${parseFloat(data.total).toFixed(2)}</strong>
+                        <div style="background:var(--surface);border-radius:var(--radius-md);padding:0.85rem">
+                            <div style="font-size:0.72rem;font-weight:600;text-transform:uppercase;color:var(--text-muted)">Total</div>
+                            <div style="font-size:1.2rem;font-weight:800;color:#059669">GHS ${parseFloat(data.total).toFixed(2)}</div>
+                        </div>
                     </div>
                     <div class="col-6">
-                        <p class="text-muted mb-1">Total Profit</p>
-                        <strong class="text-primary">GHS ${parseFloat(data.total_profit).toFixed(2)}</strong>
+                        <div style="background:var(--surface);border-radius:var(--radius-md);padding:0.85rem">
+                            <div style="font-size:0.72rem;font-weight:600;text-transform:uppercase;color:var(--text-muted)">Profit</div>
+                            <div style="font-size:1.2rem;font-weight:800;color:#2563eb">GHS ${parseFloat(data.total_profit).toFixed(2)}</div>
+                        </div>
                     </div>
                 </div>
-                ${data.change_given > 0 ? `
-                    <div class="mt-3 p-2 bg-info bg-opacity-10 rounded">
-                        <strong>Change Given: GHS ${parseFloat(data.change_given).toFixed(2)}</strong>
-                    </div>
-                ` : ''}
-            `;
+                ${data.change_given > 0 ? `<div class="mt-3 p-2 rounded" style="background:#cffafe;color:#164e63;font-weight:600;font-size:0.9rem">Change: GHS ${parseFloat(data.change_given).toFixed(2)}</div>` : ''}
+            </div>`;
         }
-        
-        if (receiptBtn) {
-            receiptBtn.href = `/pos/receipt/${data.sale_id}`;
-        }
-
-        const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-        successModal.show();
+        if (rb) rb.href = `/pos/receipt/${data.sale_id}`;
+        new bootstrap.Modal(document.getElementById('successModal')).show();
     }
 
-    clearCart() {
-        this.cart = [];
-        this.continuingSaleId = null;
-        console.log('Cart cleared');
-        this.updateCartDisplay();
-        this.showAlert('Cart cleared!', 'info');
-    }
+    clearCart() { this.cart = []; this.continuingSaleId = null; this.updateCartDisplay(); this.showAlert('Cart cleared!', 'info'); }
 
-    filterProducts(searchTerm) {
-        const products = document.querySelectorAll('.product-item');
-        const term = searchTerm.toLowerCase();
-
-        products.forEach(product => {
-            const name = product.dataset.name;
-            const sku = product.dataset.sku;
-            
-            if (name.includes(term) || sku.includes(term)) {
-                product.style.display = 'block';
-            } else {
-                product.style.display = 'none';
-            }
+    filterProducts(term) {
+        const t = term.toLowerCase();
+        document.querySelectorAll('.product-item').forEach(p => {
+            p.style.display = (p.dataset.name.includes(t) || p.dataset.sku.includes(t)) ? 'block' : 'none';
         });
     }
 
     showAlert(message, type) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 350px;';
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        
-        document.body.appendChild(alertDiv);
-        
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.remove();
-            }
-        }, 5000);
+        const d = document.createElement('div');
+        d.className = `alert alert-${type} alert-dismissible fade show`;
+        d.style.cssText = 'position:fixed;top:80px;right:1.25rem;z-index:9999;max-width:320px;font-size:0.84rem';
+        d.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        document.body.appendChild(d);
+        setTimeout(() => { if (d.parentNode) d.remove(); }, 4500);
     }
 }
 

@@ -1,331 +1,366 @@
 {% extends "base.html" %}
 
-{% block title %}Profits Dashboard - MY LORD ENTERPRISE POS SYSTEM{% endblock %}
+{% block title %}Profits Dashboard - MY LORD ENTERPRISE POS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header-bar {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.75rem;
+    }
+
+    .page-title {
+        font-size: 1.55rem; font-weight: 800;
+        color: var(--text-primary); letter-spacing: -0.4px;
+        display: flex; align-items: center; gap: 0.5rem;
+    }
+    .page-title i { color: var(--gold); }
+
+    /* ── Filter card ── */
+    .filter-card .card-body { padding: 1.1rem 1.25rem; }
+    .filter-row { display: flex; align-items: flex-end; gap: 0.85rem; flex-wrap: wrap; }
+    .filter-row .filter-group { display: flex; flex-direction: column; gap: 0.25rem; }
+    .filter-row .filter-group label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+    .filter-row .filter-group input,
+    .filter-row .filter-group select { font-size: 0.84rem; min-width: 130px; }
+
+    /* ── KPI cards ── */
+    .kpi-card {
+        border-radius: var(--radius-lg) !important;
+        border: none !important;
+        box-shadow: var(--shadow-md) !important;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .kpi-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg) !important; }
+    .kpi-card .card-body { padding: 1.35rem !important; }
+    .kpi-card .kpi-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.65px; opacity: 0.82; margin-bottom: 0.3rem; }
+    .kpi-card .kpi-value { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.8px; line-height: 1; color: #fff; }
+    .kpi-card .kpi-icon { position: absolute; top: 1rem; right: 1rem; font-size: 1.7rem; opacity: 0.18; }
+
+    .kpi-green  { background: linear-gradient(135deg, #059669, #10b981) !important; }
+    .kpi-blue   { background: linear-gradient(135deg, #1d4ed8, #3b82f6) !important; }
+    .kpi-cyan   { background: linear-gradient(135deg, #0891b2, #06b6d4) !important; }
+    .kpi-navy   { background: linear-gradient(135deg, var(--navy), #2d3f7a) !important; }
+
+    /* ── Chart cards ── */
+    .chart-card .card-header { padding: 1rem 1.3rem; }
+    .chart-card canvas { display: block; }
+
+    /* ── Products table ── */
+    .profit-pct {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        font-size: 0.82rem; font-weight: 600;
+    }
+    .profit-pct-bar {
+        display: inline-block;
+        height: 6px; border-radius: 3px;
+        background: linear-gradient(90deg, #059669, #10b981);
+        vertical-align: middle;
+    }
+
+    /* ── Unit breakdown ── */
+    .unit-tile {
+        background: var(--white);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.2rem;
+        transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .unit-tile:hover { border-color: #93c5fd; box-shadow: var(--shadow-md); }
+
+    .unit-tile .ut-icon {
+        width: 42px; height: 42px;
+        border-radius: var(--radius-sm);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.2rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .unit-tile .ut-name { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 0.6rem; }
+    .unit-tile .ut-stat { font-size: 0.84rem; color: var(--text-body); margin-bottom: 0.25rem; }
+    .unit-tile .ut-profit { font-size: 1.1rem; font-weight: 800; margin-top: 0.4rem; }
+
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fadeUp 0.4s ease both; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="content-wrapper">
-        <!-- Header -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h2><i class="bi bi-graph-up"></i> Profits Dashboard</h2>
-                    <div class="d-flex gap-2">
-                        <a href="{{ url_for('pos.sales_report') }}" class="btn btn-outline-primary">
-                            <i class="bi bi-bar-chart"></i> Sales Report
-                        </a>
-                        <a href="{{ url_for('pos.list_sales') }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-list"></i> Sales List
-                        </a>
-                    </div>
-                </div>
+
+<div class="page-header-bar">
+    <h2 class="page-title fade-up">
+        <i class="bi bi-graph-up-arrow"></i> Profits Dashboard
+    </h2>
+    <div class="d-flex gap-2 fade-up" style="animation-delay:0.05s">
+        <a href="{{ url_for('pos.sales_report') }}" class="btn btn-outline-primary">
+            <i class="bi bi-bar-chart"></i> Sales Report
+        </a>
+        <a href="{{ url_for('pos.list_sales') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-list"></i> Sales List
+        </a>
+    </div>
+</div>
+
+<!-- Date Filter -->
+<div class="card filter-card mb-4 fade-up" style="animation-delay:0.08s">
+    <div class="card-body">
+        <form method="GET" class="filter-row">
+            <div class="filter-group">
+                <label for="start_date">Start Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="filter-group">
+                <label for="end_date">End Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="filter-group">
+                <label for="period">Quick Period</label>
+                <select class="form-select" id="period" name="period">
+                    <option value="7"   {{ 'selected' if period == '7'   else '' }}>Last 7 days</option>
+                    <option value="30"  {{ 'selected' if period == '30'  else '' }}>Last 30 days</option>
+                    <option value="90"  {{ 'selected' if period == '90'  else '' }}>Last 3 months</option>
+                    <option value="365" {{ 'selected' if period == '365' else '' }}>Last year</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-arrow-clockwise"></i> Update
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3 fade-up" style="animation-delay:0.1s">
+        <div class="card kpi-card kpi-green" style="position:relative">
+            <div class="card-body">
+                <div class="kpi-label" style="color:rgba(255,255,255,0.85)">Total Revenue</div>
+                <div class="kpi-value">GHS {{ total_revenue|currency }}</div>
+            </div>
+            <i class="bi bi-currency-dollar kpi-icon" style="color:#fff"></i>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3 fade-up" style="animation-delay:0.16s">
+        <div class="card kpi-card kpi-blue" style="position:relative">
+            <div class="card-body">
+                <div class="kpi-label" style="color:rgba(255,255,255,0.85)">Total Profit</div>
+                <div class="kpi-value">GHS {{ total_profit|currency }}</div>
+            </div>
+            <i class="bi bi-graph-up kpi-icon" style="color:#fff"></i>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3 fade-up" style="animation-delay:0.22s">
+        <div class="card kpi-card kpi-cyan" style="position:relative">
+            <div class="card-body">
+                <div class="kpi-label" style="color:rgba(255,255,255,0.85)">Profit Margin</div>
+                <div class="kpi-value">{{ "%.1f"|format(profit_margin) }}%</div>
+            </div>
+            <i class="bi bi-percent kpi-icon" style="color:#fff"></i>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3 fade-up" style="animation-delay:0.28s">
+        <div class="card kpi-card kpi-navy" style="position:relative">
+            <div class="card-body">
+                <div class="kpi-label" style="color:rgba(255,255,255,0.85)">Total Sales</div>
+                <div class="kpi-value">{{ total_sales_count }}</div>
+            </div>
+            <i class="bi bi-receipt kpi-icon" style="color:#fff"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-8 fade-up" style="animation-delay:0.3s">
+        <div class="card chart-card h-100">
+            <div class="card-header">
+                <h5><i class="bi bi-activity"></i> Daily Profit Trend</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="dailyProfitChart" height="200"></canvas>
             </div>
         </div>
-
-        <!-- Date Filter -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body">
-                        <form method="GET" class="row g-3 align-items-end">
-                            <div class="col-md-2">
-                                <label for="start_date" class="form-label">Start Date</label>
-                                <input type="date" class="form-control" id="start_date" name="start_date" 
-                                       value="{{ start_date }}">
-                            </div>
-                            <div class="col-md-2">
-                                <label for="end_date" class="form-label">End Date</label>
-                                <input type="date" class="form-control" id="end_date" name="end_date" 
-                                       value="{{ end_date }}">
-                            </div>
-                            <div class="col-md-2">
-                                <label for="period" class="form-label">Quick Period</label>
-                                <select class="form-select" id="period" name="period">
-                                    <option value="7" {{ 'selected' if period == '7' else '' }}>Last 7 days</option>
-                                    <option value="30" {{ 'selected' if period == '30' else '' }}>Last 30 days</option>
-                                    <option value="90" {{ 'selected' if period == '90' else '' }}>Last 3 months</option>
-                                    <option value="365" {{ 'selected' if period == '365' else '' }}>Last year</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-search"></i> Update
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+    </div>
+    <div class="col-xl-4 fade-up" style="animation-delay:0.36s">
+        <div class="card chart-card h-100">
+            <div class="card-header">
+                <h5><i class="bi bi-pie-chart-fill"></i> Profit by Unit Type</h5>
             </div>
-        </div>
-
-        <!-- Key Metrics -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-white bg-success">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h6 class="card-title">Total Revenue</h6>
-                                <h4>GHS {{ total_revenue|currency }}</h4>
-                            </div>
-                            <i class="bi bi-currency-dollar" style="font-size: 2rem; opacity: 0.7;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-primary">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h6 class="card-title">Total Profit</h6>
-                                <h4>GHS {{ total_profit|currency }}</h4>
-                            </div>
-                            <i class="bi bi-graph-up" style="font-size: 2rem; opacity: 0.7;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-info">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h6 class="card-title">Profit Margin</h6>
-                                <h4>{{ "%.1f"|format(profit_margin) }}%</h4>
-                            </div>
-                            <i class="bi bi-percent" style="font-size: 2rem; opacity: 0.7;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-dark">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h6 class="card-title">Total Sales</h6>
-                                <h4>{{ total_sales_count }}</h4>
-                            </div>
-                            <i class="bi bi-receipt" style="font-size: 2rem; opacity: 0.7;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Charts Row -->
-        <div class="row mb-4">
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Daily Profit Trend</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="dailyProfitChart" width="400" height="200"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Profit by Unit Type</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="unitProfitChart" width="300" height="300"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Top Products by Profit -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Top 10 Products by Profit</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Product</th>
-                                        <th>SKU</th>
-                                        <th class="text-center">Qty Sold</th>
-                                        <th class="text-end">Revenue</th>
-                                        <th class="text-end">Profit</th>
-                                        <th class="text-end">Profit Margin</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for product in product_profits %}
-                                    <tr>
-                                        <td><strong>{{ product.product_name }}</strong></td>
-                                        <td><code>{{ product.sku }}</code></td>
-                                        <td class="text-center">{{ product.quantity_sold }}</td>
-                                        <td class="text-end">GHS {{ (product.total_revenue|currency) }}</td>
-                                        <td class="text-end text-success">
-                                            <strong>GHS {{ (product.total_profit|currency) }}</strong>
-                                        </td>
-                                        <td class="text-end">
-                                            {{ "%.1f"|format((product.total_profit / product.total_revenue * 100) if product.total_revenue > 0 else 0) }}%
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Unit Type Breakdown -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Profit Breakdown by Unit Type</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            {% for unit in unit_profits %}
-                            <div class="col-md-3">
-                                <div class="border rounded p-3 mb-3">
-                                    <h6 class="text-primary">
-                                        {% if unit.unit_type == 'full' %}
-                                            <i class="bi bi-box"></i> Full Pack
-                                        {% elif unit.unit_type == 'half' %}
-                                            <i class="bi bi-box-seam"></i> Half Pack
-                                        {% elif unit.unit_type == 'quarter' %}
-                                            <i class="bi bi-box-arrow-down"></i> Quarter Pack
-                                        {% elif unit.unit_type == 'unit' %}
-                                            <i class="bi bi-diagram-3"></i> Single Units
-                                        {% else %}
-                                            <i class="bi bi-box"></i> {{ unit.unit_type.title() }}
-                                        {% endif %}
-                                    </h6>
-                                    <p class="mb-1"><strong>Units Sold:</strong> {{ unit.quantity_sold }}</p>
-                                    <p class="mb-1"><strong>Revenue:</strong> GHS {{ (unit.total_revenue|currency) }}</p>
-                                    <p class="mb-0 text-success"><strong>Profit:</strong> GHS {{ (unit.total_profit|currency) }}</p>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <canvas id="unitProfitChart" style="max-height:260px"></canvas>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Top Products by Profit -->
+<div class="card mb-4 fade-up" style="animation-delay:0.4s">
+    <div class="card-header">
+        <h5><i class="bi bi-trophy-fill"></i> Top 10 Products by Profit</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Product</th>
+                        <th>SKU</th>
+                        <th class="text-center">Qty Sold</th>
+                        <th class="text-end">Revenue</th>
+                        <th class="text-end">Profit</th>
+                        <th class="text-end">Margin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in product_profits %}
+                    <tr>
+                        <td style="color:var(--text-muted);font-size:0.82rem;font-weight:600">{{ loop.index }}</td>
+                        <td><strong style="color:var(--text-primary)">{{ product.product_name }}</strong></td>
+                        <td><code>{{ product.sku }}</code></td>
+                        <td class="text-center">
+                            <span class="badge bg-info" style="font-size:0.78rem">{{ product.quantity_sold }}</span>
+                        </td>
+                        <td class="text-end" style="font-size:0.875rem">GHS {{ product.total_revenue|currency }}</td>
+                        <td class="text-end">
+                            <strong style="color:#059669">GHS {{ product.total_profit|currency }}</strong>
+                        </td>
+                        <td class="text-end">
+                            {% set margin = (product.total_profit / product.total_revenue * 100) if product.total_revenue > 0 else 0 %}
+                            <div class="profit-pct">
+                                <span style="font-size:0.82rem;font-weight:700;color:var(--text-primary)">{{ "%.1f"|format(margin) }}%</span>
+                                <span class="profit-pct-bar" style="width:{{ [margin * 0.6, 50]|min }}px"></span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Unit Type Breakdown -->
+<div class="card fade-up" style="animation-delay:0.46s">
+    <div class="card-header">
+        <h5><i class="bi bi-grid-3x3-gap-fill"></i> Profit by Unit Type</h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            {% for unit in unit_profits %}
+            <div class="col-6 col-xl-3">
+                <div class="unit-tile">
+                    {% if unit.unit_type == 'full' %}
+                        <div class="ut-icon" style="background:#dbeafe;color:#1d4ed8"><i class="bi bi-box"></i></div>
+                        <div class="ut-name">Full Pack</div>
+                    {% elif unit.unit_type == 'half' %}
+                        <div class="ut-icon" style="background:#ede9fe;color:#7c3aed"><i class="bi bi-box-seam"></i></div>
+                        <div class="ut-name">Half Pack</div>
+                    {% elif unit.unit_type == 'quarter' %}
+                        <div class="ut-icon" style="background:#fef3c7;color:#d97706"><i class="bi bi-box-arrow-down"></i></div>
+                        <div class="ut-name">Quarter Pack</div>
+                    {% elif unit.unit_type == 'unit' %}
+                        <div class="ut-icon" style="background:#dcfce7;color:#059669"><i class="bi bi-diagram-3"></i></div>
+                        <div class="ut-name">Single Units</div>
+                    {% else %}
+                        <div class="ut-icon" style="background:var(--surface-2);color:var(--text-muted)"><i class="bi bi-box"></i></div>
+                        <div class="ut-name">{{ unit.unit_type.title() }}</div>
+                    {% endif %}
+                    <div class="ut-stat"><span style="font-weight:600">Sold:</span> {{ unit.quantity_sold }}</div>
+                    <div class="ut-stat"><span style="font-weight:600">Revenue:</span> GHS {{ unit.total_revenue|currency }}</div>
+                    <div class="ut-profit" style="color:#059669">GHS {{ unit.total_profit|currency }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Daily Profit Chart
+    // ── Daily Profit Chart ──
     const dailyCtx = document.getElementById('dailyProfitChart').getContext('2d');
-    const dailyProfitChart = new Chart(dailyCtx, {
+    new Chart(dailyCtx, {
         type: 'line',
         data: {
             labels: [
-                {% for day in daily_profits %}
-                    "{{ day.date.strftime('%m/%d') if day.date else 'N/A' }}"{% if not loop.last %},{% endif %}
-                {% endfor %}
+                {% for day in daily_profits %}"{{ day.date.strftime('%m/%d') if day.date else 'N/A' }}"{% if not loop.last %},{% endif %}{% endfor %}
             ],
             datasets: [{
                 label: 'Daily Profit (GHS)',
                 data: [
-                    {% for day in daily_profits %}
-                    {{ day.profit|float if day.profit else 0 }}{% if not loop.last %},{% endif %}
-                    {% endfor %}
+                    {% for day in daily_profits %}{{ day.profit|float if day.profit else 0 }}{% if not loop.last %},{% endif %}{% endfor %}
                 ],
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                tension: 0.1,
-                fill: true
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16,185,129,0.08)',
+                borderWidth: 2.5,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#059669',
+                pointRadius: 4,
+                pointHoverRadius: 6
             }]
         },
         options: {
             responsive: true,
+            plugins: { legend: { display: false } },
             scales: {
+                x: { grid: { color: 'rgba(220,227,240,0.6)' }, ticks: { font: { size: 11 }, color: '#7a8ab0' } },
                 y: {
                     beginAtZero: true,
+                    grid: { color: 'rgba(220,227,240,0.6)' },
                     ticks: {
-                        callback: function(value) {
-                            return 'GHS ' + value.toLocaleString('en-US', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2
-                            });
-                        }
+                        font: { size: 11 }, color: '#7a8ab0',
+                        callback: v => 'GHS ' + v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                     }
                 }
             }
         }
     });
 
-    // Unit Type Profit Pie Chart
-    const unitCtx = document.getElementById('unitProfitChart').getContext('2d');
-    
-    // Create proper labels and colors for each unit type
-    const unitLabels = [];
-    const unitData = [];
-    const unitColors = [];
-    
-    // Color mapping for each unit type
+    // ── Unit Type Profit Doughnut ──
+    const unitLabels = [], unitData = [], unitColors = [];
     const colorMap = {
-        'full': 'rgba(75, 192, 192, 0.8)',      // Teal for Full Pack
-        'half': 'rgba(153, 102, 255, 0.8)',     // Purple for Half Pack
-        'quarter': 'rgba(255, 159, 64, 0.8)',   // Orange for Quarter Pack
-        'unit': 'rgba(54, 162, 235, 0.8)'       // Blue for Single Units
+        full:    '#3b82f6',
+        half:    '#8b5cf6',
+        quarter: '#f59e0b',
+        unit:    '#10b981'
     };
-    
+
     {% for unit in unit_profits %}
-        {% if unit.unit_type == 'full' %}
-            unitLabels.push('Full Pack');
-            unitColors.push(colorMap['full']);
-        {% elif unit.unit_type == 'half' %}
-            unitLabels.push('Half Pack');
-            unitColors.push(colorMap['half']);
-        {% elif unit.unit_type == 'quarter' %}
-            unitLabels.push('Quarter Pack');
-            unitColors.push(colorMap['quarter']);
-        {% elif unit.unit_type == 'unit' %}
-            unitLabels.push('Single Units');
-            unitColors.push(colorMap['unit']);
-        {% else %}
-            unitLabels.push('{{ unit.unit_type.title() }}');
-            unitColors.push('rgba(201, 203, 207, 0.8)');
-        {% endif %}
+        {% if unit.unit_type == 'full' %}unitLabels.push('Full Pack');
+        {% elif unit.unit_type == 'half' %}unitLabels.push('Half Pack');
+        {% elif unit.unit_type == 'quarter' %}unitLabels.push('Quarter Pack');
+        {% elif unit.unit_type == 'unit' %}unitLabels.push('Single Units');
+        {% else %}unitLabels.push('{{ unit.unit_type.title() }}');{% endif %}
+        unitColors.push(colorMap['{{ unit.unit_type }}'] || '#94a3b8');
         unitData.push({{ unit.total_profit|float if unit.total_profit else 0 }});
     {% endfor %}
-    
-    const unitProfitChart = new Chart(unitCtx, {
+
+    const unitCtx = document.getElementById('unitProfitChart').getContext('2d');
+    new Chart(unitCtx, {
         type: 'doughnut',
         data: {
             labels: unitLabels,
-            datasets: [{
-                data: unitData,
-                backgroundColor: unitColors
-            }]
+            datasets: [{ data: unitData, backgroundColor: unitColors, borderWidth: 2, borderColor: '#fff', hoverBorderWidth: 3 }]
         },
         options: {
             responsive: true,
+            cutout: '62%',
             plugins: {
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            return context.label + ': GHS ' + context.parsed.toLocaleString('en-US', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2
-                            });
-                        }
+                        label: ctx => ctx.label + ': GHS ' + ctx.parsed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                     }
                 },
-                legend: {
-                    position: 'bottom'
-                }
+                legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 16, usePointStyle: true, pointStyle: 'circle' } }
             }
         }
     });

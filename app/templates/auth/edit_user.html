@@ -1,182 +1,224 @@
 {% extends "base.html" %}
 
-{% block title %}Edit User - {{ user.username }} - POS System{% endblock %}
+{% block title %}Edit User — {{ user.username }} - MY LORD ENTERPRISE POS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-user-wrap {
+        display: flex; justify-content: center; gap: 1.5rem;
+        flex-wrap: wrap; padding-bottom: 2rem;
+    }
+
+    .eu-main { width: 100%; max-width: 520px; }
+    .eu-side  { width: 100%; max-width: 300px; }
+
+    .page-title {
+        font-size: 1.4rem; font-weight: 800;
+        color: var(--text-primary); letter-spacing: -0.4px;
+        display: flex; align-items: center; gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .page-title i { color: var(--gold); }
+
+    .form-field-group { margin-bottom: 1.1rem; }
+    .field-error { font-size: 0.78rem; color: #dc2626; margin-top: 0.3rem; display: flex; align-items: center; gap: 0.3rem; }
+
+    .section-divider {
+        display: flex; align-items: center; gap: 0.75rem;
+        margin: 1.5rem 0 1.1rem;
+    }
+    .section-divider span {
+        font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.6px; color: var(--text-muted); white-space: nowrap;
+    }
+    .section-divider::before, .section-divider::after {
+        content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* User stats */
+    .stat-row { display: flex; gap: 1rem; margin-bottom: 1rem; }
+    .stat-box {
+        flex: 1; background: var(--surface); border-radius: var(--radius-md);
+        padding: 1rem; text-align: center;
+    }
+    .stat-box .sb-value { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px; }
+    .stat-box .sb-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-top: 0.2rem; }
+
+    /* Role badge */
+    .role-badge {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        padding: 0.3em 0.7em; border-radius: 20px;
+        font-size: 0.72rem; font-weight: 600;
+    }
+
+    .user-info-banner {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 0.85rem 1rem;
+        margin-bottom: 1.25rem;
+        font-size: 0.86rem;
+        display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+    }
+
+    .you-tag {
+        background: #cffafe; color: #164e63;
+        font-size: 0.7rem; font-weight: 600;
+        padding: 0.2em 0.55em; border-radius: 4px;
+    }
+
+    .btn-submit { font-size: 0.875rem; font-weight: 700; }
+
+    /* Sticky sidebar */
+    .eu-side-sticky { position: sticky; top: calc(var(--navbar-h) + 1rem); }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="bi bi-person-gear"></i> Edit User - {{ user.username }}
-                </h5>
-                <a href="{{ url_for('auth.manage_users') }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-arrow-left"></i> Back to Users
-                </a>
-            </div>
-            <div class="card-body">
+<div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <h2 class="page-title mb-0">
+        <i class="bi bi-person-gear"></i> Edit User
+    </h2>
+    <a href="{{ url_for('auth.manage_users') }}" class="btn btn-outline-secondary btn-sm ms-auto">
+        <i class="bi bi-arrow-left"></i> Back to Users
+    </a>
+</div>
+
+<div class="edit-user-wrap">
+
+    <!-- Main Form -->
+    <div class="eu-main">
+        <div class="card" style="border-radius:var(--radius-xl);box-shadow:var(--shadow-md)">
+            <div class="card-body" style="padding:1.75rem">
+
+                <!-- User info banner -->
+                <div class="user-info-banner">
+                    <i class="bi bi-person-circle" style="font-size:1.3rem;color:var(--text-muted)"></i>
+                    <strong style="color:var(--text-primary)">{{ user.username }}</strong>
+                    <span class="role-badge bg-{{ 'danger' if user.role == 'admin' else 'warning' if user.role == 'manager' else 'secondary' }}">
+                        {{ user.role.title() }}
+                    </span>
+                    {% if user.id == current_user.id %}
+                    <span class="you-tag">Your Account</span>
+                    {% endif %}
+                </div>
+
                 <form method="POST" novalidate>
                     {{ form.hidden_tag() }}
-                    
-                    <!-- Current User Info -->
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i>
-                        <strong>Editing:</strong> {{ user.username }} 
-                        <span class="badge bg-{{ 'danger' if user.role == 'admin' else 'warning' if user.role == 'manager' else 'secondary' }}">
-                            {{ user.role.title() }}
-                        </span>
-                        {% if user.id == current_user.id %}
-                        <span class="badge bg-info">Your Account</span>
-                        {% endif %}
-                    </div>
 
-                    <!-- Username Field -->
-                    <div class="mb-3">
+                    <div class="form-field-group">
                         {{ form.username.label(class="form-label") }}
                         {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
                         {% if form.username.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.username.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
+                        <div class="field-error"><i class="bi bi-exclamation-circle"></i>{% for e in form.username.errors %}{{ e }}{% endfor %}</div>
                         {% endif %}
                     </div>
 
-                    <!-- Role Field -->
-                    <div class="mb-3">
+                    <div class="form-field-group">
                         {{ form.role.label(class="form-label") }}
                         {{ form.role(class="form-select" + (" is-invalid" if form.role.errors else "")) }}
                         {% if form.role.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.role.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
+                        <div class="field-error"><i class="bi bi-exclamation-circle"></i>{% for e in form.role.errors %}{{ e }}{% endfor %}</div>
                         {% endif %}
                         {% if user.id == current_user.id and user.role == 'admin' %}
-                        <div class="form-text text-warning">
-                            <i class="bi bi-exclamation-triangle"></i>
-                            You cannot change your own admin role to prevent system lockout.
+                        <div class="form-text" style="color:#d97706">
+                            <i class="bi bi-exclamation-triangle-fill"></i> You cannot change your own admin role to prevent system lockout.
                         </div>
                         {% endif %}
                     </div>
 
-                    <hr>
-
-                    <!-- Password Section -->
-                    <h6 class="text-muted">Change Password (Optional)</h6>
-                    
-                    <div class="mb-3">
-                        {{ form.password.label(class="form-label") }}
-                        {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
-                        {% if form.password.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.password.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                        <div class="form-text">
-                            Leave blank to keep the current password
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        {{ form.password_confirm.label(class="form-label") }}
-                        {{ form.password_confirm(class="form-control" + (" is-invalid" if form.password_confirm.errors else "")) }}
-                        {% if form.password_confirm.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.password_confirm.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Active Status (if field exists) -->
                     {% if form.is_active %}
-                    <div class="mb-3">
-                        <div class="form-check">
+                    <div class="form-field-group">
+                        <div class="form-check" style="background:var(--surface);padding:0.85rem 1rem;border-radius:var(--radius-sm);border:1.5px solid var(--border)">
                             {{ form.is_active(class="form-check-input") }}
-                            {{ form.is_active.label(class="form-check-label") }}
+                            {{ form.is_active.label(class="form-check-label", style="font-weight:600;font-size:0.875rem") }}
                         </div>
-                        <div class="form-text">
-                            Inactive users cannot log in to the system
-                        </div>
+                        <div class="form-text">Inactive users cannot log in to the system</div>
                     </div>
                     {% endif %}
 
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{{ url_for('auth.manage_users') }}" class="btn btn-outline-secondary">
-                            Cancel
-                        </a>
-                        {{ form.submit(class="btn btn-primary") }}
+                    <div class="section-divider">
+                        <span><i class="bi bi-lock"></i> Change Password</span>
+                    </div>
+
+                    <div class="form-field-group">
+                        {{ form.password.label(class="form-label") }}
+                        {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), id="editPassword", placeholder="Leave blank to keep current") }}
+                        {% if form.password.errors %}
+                        <div class="field-error"><i class="bi bi-exclamation-circle"></i>{% for e in form.password.errors %}{{ e }}{% endfor %}</div>
+                        {% endif %}
+                        <div class="form-text">Leave blank to keep the current password</div>
+                    </div>
+
+                    <div class="form-field-group" id="confirmDiv" style="display:none">
+                        {{ form.password_confirm.label(class="form-label") }}
+                        {{ form.password_confirm(class="form-control" + (" is-invalid" if form.password_confirm.errors else ""), placeholder="Repeat new password") }}
+                        {% if form.password_confirm.errors %}
+                        <div class="field-error"><i class="bi bi-exclamation-circle"></i>{% for e in form.password_confirm.errors %}{{ e }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end mt-3">
+                        <a href="{{ url_for('auth.manage_users') }}" class="btn btn-outline-secondary">Cancel</a>
+                        {{ form.submit(class="btn btn-primary btn-submit") }}
                     </div>
                 </form>
             </div>
         </div>
+    </div>
 
-        <!-- Additional User Info -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h6 class="mb-0">User Statistics</h6>
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-md-6">
-                        <div class="border-end">
-                            <h4 class="text-primary">{{ user.sales|length if user.sales else 0 }}</h4>
-                            <small class="text-muted">Total Sales</small>
+    <!-- Sidebar Stats -->
+    <div class="eu-side">
+        <div class="eu-side-sticky">
+            <div class="card" style="border-radius:var(--radius-xl)">
+                <div class="card-header">
+                    <h5><i class="bi bi-person-lines-fill"></i> User Statistics</h5>
+                </div>
+                <div class="card-body" style="padding:1.25rem">
+                    <div class="stat-row">
+                        <div class="stat-box">
+                            <div class="sb-value text-primary">{{ user.sales|length if user.sales else 0 }}</div>
+                            <div class="sb-label">Total Sales</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="sb-value text-success" style="font-size:1.1rem">
+                                GHS {% if user.sales %}{{ "%.2f"|format(user.sales|sum(attribute='total_amount')) }}{% else %}0.00{% endif %}
+                            </div>
+                            <div class="sb-label">Revenue</div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <h4 class="text-success">
-                            {% if user.sales %}
-                                ${{ "%.2f"|format(user.sales|sum(attribute='total_amount')) }}
-                            {% else %}
-                                $0.00
-                            {% endif %}
-                        </h4>
-                        <small class="text-muted">Total Revenue</small>
+
+                    {% if user.created_at %}
+                    <div style="font-size:0.8rem;color:var(--text-muted);text-align:center;padding-top:0.5rem;border-top:1px solid var(--border)">
+                        <i class="bi bi-calendar3"></i> Member since {{ user.created_at.strftime('%B %d, %Y') }}
                     </div>
+                    {% endif %}
                 </div>
-                
-                {% if user.created_at %}
-                <hr>
-                <div class="text-center">
-                    <small class="text-muted">
-                        Member since {{ user.created_at.strftime('%B %d, %Y') }}
-                    </small>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
+
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Show/hide password confirmation based on password input
-    const passwordField = document.getElementById('password');
-    const passwordConfirmField = document.getElementById('password_confirm');
-    const confirmDiv = passwordConfirmField.closest('.mb-3');
-    
-    // Initially hide confirm password if password is empty
-    if (!passwordField.value) {
-        confirmDiv.style.display = 'none';
-    }
-    
-    passwordField.addEventListener('input', function() {
+document.addEventListener('DOMContentLoaded', function () {
+    const pwField = document.getElementById('editPassword');
+    const confirmDiv = document.getElementById('confirmDiv');
+    const confirmField = confirmDiv?.querySelector('input');
+
+    if (!pwField) return;
+
+    if (!pwField.value) confirmDiv.style.display = 'none';
+
+    pwField.addEventListener('input', function () {
         if (this.value) {
             confirmDiv.style.display = 'block';
-            passwordConfirmField.required = true;
+            if (confirmField) confirmField.required = true;
         } else {
             confirmDiv.style.display = 'none';
-            passwordConfirmField.required = false;
-            passwordConfirmField.value = '';
+            if (confirmField) { confirmField.required = false; confirmField.value = ''; }
         }
     });
 });

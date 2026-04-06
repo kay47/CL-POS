@@ -1,81 +1,158 @@
 {% extends "base.html" %}
 
-{% block title %}Password Reset Token - POS System{% endblock %}
+{% block title %}Password Reset Token - MY LORD ENTERPRISE POS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .token-wrap {
+        display: flex; align-items: center; justify-content: center;
+        padding: 2rem 1rem; min-height: calc(100vh - var(--navbar-h));
+    }
+
+    .token-card {
+        width: 100%; max-width: 580px;
+        border-radius: var(--radius-xl) !important;
+        box-shadow: var(--shadow-lg) !important;
+        overflow: hidden;
+    }
+
+    .token-header {
+        background: linear-gradient(135deg, #d97706, var(--gold));
+        padding: 1.4rem 1.75rem;
+        display: flex; align-items: center; gap: 0.75rem;
+    }
+    .token-header .th-icon {
+        width: 44px; height: 44px; flex-shrink: 0;
+        background: rgba(255,255,255,0.2); border-radius: 11px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.3rem; color: #fff;
+    }
+    .token-header h4 { color: #fff; font-size: 1.1rem; font-weight: 800; margin: 0; }
+
+    .token-body { padding: 1.75rem; }
+
+    .info-note {
+        background: #cffafe; border-left: 4px solid #06b6d4;
+        border-radius: var(--radius-md); padding: 0.85rem 1rem;
+        font-size: 0.84rem; color: #164e63; margin-bottom: 1.25rem;
+        display: flex; align-items: flex-start; gap: 0.6rem;
+    }
+    .info-note i { flex-shrink: 0; margin-top: 0.05rem; }
+
+    .detail-block {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 1.1rem 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .detail-block h6 {
+        font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 1rem;
+    }
+
+    .detail-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.85rem; font-size: 0.875rem; }
+    .detail-row:last-child { margin-bottom: 0; }
+    .detail-row .dr-label { font-weight: 600; min-width: 90px; color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0; }
+
+    .link-input-group { display: flex; gap: 0; flex: 1; }
+    .link-input-group input {
+        flex: 1; font-family: var(--font-mono); font-size: 0.78rem;
+        background: var(--white); border-radius: var(--radius-sm) 0 0 var(--radius-sm) !important;
+        border-right: none !important;
+        color: var(--text-primary);
+    }
+    .link-input-group button { border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important; flex-shrink: 0; }
+
+    .expiry-badge {
+        display: inline-flex; align-items: center; gap: 0.35rem;
+        background: #fef9c3; color: #854d0e;
+        font-size: 0.78rem; font-weight: 600;
+        padding: 0.3em 0.65em; border-radius: 6px;
+    }
+
+    .instructions-box {
+        background: #fef9c3; border-left: 4px solid #eab308;
+        border-radius: var(--radius-md); padding: 0.9rem 1rem;
+        font-size: 0.84rem; color: #78350f; margin-bottom: 1.25rem;
+    }
+    .instructions-box h6 { font-size: 0.82rem; font-weight: 700; margin-bottom: 0.6rem; }
+    .instructions-box ol { padding-left: 1.25rem; margin: 0; }
+    .instructions-box ol li { margin-bottom: 0.3rem; }
+    .instructions-box .security-note { font-size: 0.76rem; opacity: 0.75; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #fde68a; }
+
+    .token-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card border-warning">
-            <div class="card-header bg-warning text-dark">
-                <h4 class="mb-0">
-                    <i class="bi bi-shield-exclamation"></i> Password Reset Token Generated
-                </h4>
+<div class="token-wrap">
+    <div class="card token-card">
+        <div class="token-header">
+            <div class="th-icon"><i class="bi bi-shield-exclamation"></i></div>
+            <h4>Password Reset Token Generated</h4>
+        </div>
+
+        <div class="token-body">
+
+            <div class="info-note">
+                <i class="bi bi-info-circle-fill"></i>
+                <div>In a production system, this would be sent via email. Please provide this reset link directly to the user.</div>
             </div>
-            <div class="card-body">
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i>
-                    <strong>Note:</strong> In a production system, this would be sent via email. 
-                    For now, please provide this reset link to the user.
+
+            <div class="detail-block">
+                <h6>Reset Information</h6>
+
+                <div class="detail-row">
+                    <span class="dr-label">Username</span>
+                    <strong style="color:var(--text-primary)">{{ username }}</strong>
                 </div>
-                
-                <div class="card bg-light mb-3">
-                    <div class="card-body">
-                        <h5 class="card-title">Reset Information</h5>
-                        <div class="row mb-2">
-                            <div class="col-sm-3"><strong>Username:</strong></div>
-                            <div class="col-sm-9">{{ username }}</div>
-                        </div>
-                        <div class="row mb-2">
-                            <div class="col-sm-3"><strong>Reset Link:</strong></div>
-                            <div class="col-sm-9">
-                                <div class="input-group">
-                                    <input type="text" class="form-control" 
-                                           id="resetLink" 
-                                           value="{{ url_for('auth.reset_password', token=token, _external=True) }}" 
-                                           readonly>
-                                    <button class="btn btn-outline-secondary" 
-                                            type="button" 
-                                            onclick="copyResetLink()" 
-                                            title="Copy Link">
-                                        <i class="bi bi-clipboard"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-sm-3"><strong>Expires:</strong></div>
-                            <div class="col-sm-9">
-                                <span class="text-warning">1 hour from now</span>
-                            </div>
-                        </div>
+
+                <div class="detail-row">
+                    <span class="dr-label">Reset Link</span>
+                    <div class="link-input-group">
+                        <input type="text" class="form-control"
+                               id="resetLink"
+                               value="{{ url_for('auth.reset_password', token=token, _external=True) }}"
+                               readonly>
+                        <button class="btn btn-outline-secondary" type="button"
+                                onclick="copyResetLink()" title="Copy Link">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
                     </div>
                 </div>
-                
-                <div class="alert alert-warning">
-                    <h6><i class="bi bi-exclamation-triangle"></i> Instructions for User:</h6>
-                    <ol class="mb-0">
-                        <li>Click the reset link above</li>
-                        <li>Enter a new secure password</li>
-                        <li>Confirm the password</li>
-                        <li>Click "Reset Password" to complete</li>
-                    </ol>
-                    <hr>
-                    <small class="text-muted">
-                        <strong>Security Note:</strong> This link expires in 1 hour and can only be used once.
-                    </small>
-                </div>
-                
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    <a href="{{ url_for('auth.manage_users') }}" class="btn btn-secondary">
-                        <i class="bi bi-people"></i> Back to Users
-                    </a>
-                    <a href="{{ url_for('auth.reset_password', token=token) }}" 
-                       class="btn btn-warning" 
-                       target="_blank">
-                        <i class="bi bi-box-arrow-up-right"></i> Test Reset Link
-                    </a>
+
+                <div class="detail-row">
+                    <span class="dr-label">Expires</span>
+                    <span class="expiry-badge"><i class="bi bi-clock"></i> 1 hour from now</span>
                 </div>
             </div>
+
+            <div class="instructions-box">
+                <h6><i class="bi bi-person-check"></i> Instructions for User</h6>
+                <ol>
+                    <li>Click the reset link above</li>
+                    <li>Enter a new secure password</li>
+                    <li>Confirm the password</li>
+                    <li>Click "Reset Password" to complete</li>
+                </ol>
+                <div class="security-note">
+                    <i class="bi bi-lock-fill"></i>
+                    <strong>Security note:</strong> This link expires in 1 hour and can only be used once.
+                </div>
+            </div>
+
+            <div class="token-actions">
+                <a href="{{ url_for('auth.manage_users') }}" class="btn btn-secondary">
+                    <i class="bi bi-people"></i> Back to Users
+                </a>
+                <a href="{{ url_for('auth.reset_password', token=token) }}"
+                   class="btn btn-warning" target="_blank">
+                    <i class="bi bi-box-arrow-up-right"></i> Test Reset Link
+                </a>
+            </div>
+
         </div>
     </div>
 </div>
@@ -84,26 +161,17 @@
 {% block scripts %}
 <script>
 function copyResetLink() {
-    const linkInput = document.getElementById('resetLink');
-    linkInput.select();
-    linkInput.setSelectionRange(0, 99999); // For mobile devices
-    
-    navigator.clipboard.writeText(linkInput.value).then(function() {
-        // Show feedback
-        const button = linkInput.nextElementSibling;
-        const originalContent = button.innerHTML;
-        button.innerHTML = '<i class="bi bi-check"></i> Copied!';
-        button.classList.remove('btn-outline-secondary');
-        button.classList.add('btn-success');
-        
+    const input = document.getElementById('resetLink');
+    navigator.clipboard.writeText(input.value).then(() => {
+        const btn = input.nextElementSibling;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+        btn.classList.replace('btn-outline-secondary', 'btn-success');
         setTimeout(() => {
-            button.innerHTML = originalContent;
-            button.classList.remove('btn-success');
-            button.classList.add('btn-outline-secondary');
-        }, 2000);
-    }).catch(function(err) {
-        alert('Failed to copy link. Please copy manually.');
-    });
+            btn.innerHTML = orig;
+            btn.classList.replace('btn-success', 'btn-outline-secondary');
+        }, 2200);
+    }).catch(() => alert('Please copy the link manually.'));
 }
 </script>
 {% endblock %}

@@ -1,60 +1,129 @@
 {% extends "base.html" %}
 
-{% block title %}Confirm Delete User - {{ user.username }} - POS System{% endblock %}
+{% block title %}Delete User — {{ user.username }} - MY LORD ENTERPRISE POS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .confirm-wrap {
+        display: flex; align-items: center; justify-content: center;
+        padding: 2rem 1rem; min-height: calc(100vh - var(--navbar-h));
+    }
+
+    .confirm-card {
+        width: 100%; max-width: 480px;
+        border-radius: var(--radius-xl) !important;
+        box-shadow: var(--shadow-lg) !important;
+        overflow: hidden;
+    }
+
+    .danger-header {
+        background: linear-gradient(135deg, #dc2626, #ef4444);
+        padding: 1.4rem 1.75rem;
+        display: flex; align-items: center; gap: 0.75rem;
+    }
+    .danger-header .dh-icon {
+        width: 44px; height: 44px; flex-shrink: 0;
+        background: rgba(255,255,255,0.2); border-radius: 11px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.3rem; color: #fff;
+    }
+    .danger-header h4 { color: #fff; font-size: 1.1rem; font-weight: 800; margin: 0; }
+
+    .confirm-body { padding: 1.75rem; }
+
+    .user-info-block {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 1rem 1.1rem;
+        margin-bottom: 1.25rem;
+    }
+    .user-info-block .uib-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 0.875rem; }
+    .user-info-block .uib-row:last-child { margin-bottom: 0; }
+    .user-info-block .uib-label { font-weight: 600; color: var(--text-muted); min-width: 80px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    .warning-box {
+        display: flex; align-items: flex-start; gap: 0.65rem;
+        padding: 0.9rem 1rem; border-radius: var(--radius-md);
+        font-size: 0.84rem; margin-bottom: 0.75rem;
+    }
+    .warning-box.wb-danger  { background: #fee2e2; color: #991b1b; border-left: 4px solid #ef4444; }
+    .warning-box.wb-warning { background: #fef9c3; color: #854d0e; border-left: 4px solid #eab308; }
+    .warning-box i { flex-shrink: 0; font-size: 1rem; margin-top: 0.05rem; }
+
+    .confirm-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+
+    .role-chip {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        padding: 0.25em 0.6em; border-radius: 20px;
+        font-size: 0.7rem; font-weight: 700;
+    }
+    .rc-admin   { background:#fee2e2; color:#991b1b; }
+    .rc-manager { background:#fef9c3; color:#854d0e; }
+    .rc-cashier { background:var(--surface-2); color:var(--text-muted); }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card border-danger">
-            <div class="card-header bg-danger text-white">
-                <h4 class="mb-0">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    Confirm User Deletion
-                </h4>
+<div class="confirm-wrap">
+    <div class="card confirm-card">
+        <div class="danger-header">
+            <div class="dh-icon"><i class="bi bi-trash3-fill"></i></div>
+            <h4>Confirm User Deletion</h4>
+        </div>
+
+        <div class="confirm-body">
+
+            <div class="warning-box wb-danger mb-3">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div><strong>This action cannot be undone.</strong> The user account will be permanently removed.</div>
             </div>
-            <div class="card-body">
-                <div class="alert alert-warning">
-                    <strong>Warning:</strong> This action cannot be undone!
-                </div>
-                
-                <h5>User Details:</h5>
-                <div class="card bg-light mb-3">
-                    <div class="card-body">
-                        <p><strong>Username:</strong> {{ user.username }}</p>
-                        <p><strong>Role:</strong> 
-                            <span class="badge bg-{{ 'danger' if user.role == 'admin' else 'warning' if user.role == 'manager' else 'secondary' }}">
-                                {{ user.role.title() }}
-                            </span>
-                        </p>
-                        <p><strong>Sales Count:</strong> {{ sales_count }}</p>
-                    </div>
-                </div>
 
-                {% if sales_count > 0 %}
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-circle"></i>
-                    This user has {{ sales_count }} associated sales records.
+            <div class="user-info-block">
+                <div class="uib-row">
+                    <span class="uib-label">Username</span>
+                    <strong style="color:var(--text-primary)">{{ user.username }}</strong>
                 </div>
-                {% endif %}
+                <div class="uib-row">
+                    <span class="uib-label">Role</span>
+                    {% if user.role == 'admin' %}
+                        <span class="role-chip rc-admin"><i class="bi bi-shield-fill"></i> Administrator</span>
+                    {% elif user.role == 'manager' %}
+                        <span class="role-chip rc-manager"><i class="bi bi-star-fill"></i> Manager</span>
+                    {% else %}
+                        <span class="role-chip rc-cashier"><i class="bi bi-person"></i> Cashier</span>
+                    {% endif %}
+                </div>
+                <div class="uib-row">
+                    <span class="uib-label">Sales</span>
+                    <span class="badge bg-info">{{ sales_count }} records</span>
+                </div>
+            </div>
 
-                {% if user.role == 'admin' %}
-                <div class="alert alert-warning">
-                    <i class="bi bi-shield-exclamation"></i>
-                    You are about to delete an administrator account.
-                </div>
-                {% endif %}
-                
-                <div class="d-flex gap-2 mt-4">
-                    <form method="POST" action="{{ url_for('auth.delete_user', user_id=user.id) }}" 
-                          onsubmit="return confirm('Are you absolutely sure you want to delete {{ user.username }}?')">
-                        <button type="submit" class="btn btn-danger">
-                            <i class="bi bi-trash"></i> Delete User
-                        </button>
-                    </form>
-                    <a href="{{ url_for('auth.manage_users') }}" class="btn btn-secondary">
-                        <i class="bi bi-arrow-left"></i> Cancel
-                    </a>
-                </div>
+            {% if sales_count > 0 %}
+            <div class="warning-box wb-warning">
+                <i class="bi bi-receipt"></i>
+                <div>This user has <strong>{{ sales_count }} associated sales records</strong>. These records will be retained but unlinked from this user.</div>
+            </div>
+            {% endif %}
+
+            {% if user.role == 'admin' %}
+            <div class="warning-box wb-warning">
+                <i class="bi bi-shield-exclamation"></i>
+                <div>You are about to delete an <strong>administrator account</strong>. Ensure another admin exists before proceeding.</div>
+            </div>
+            {% endif %}
+
+            <div class="confirm-actions">
+                <form method="POST" action="{{ url_for('auth.delete_user', user_id=user.id) }}"
+                      onsubmit="return confirm('Permanently delete {{ user.username }}? This cannot be undone.')">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash3"></i> Delete User
+                    </button>
+                </form>
+                <a href="{{ url_for('auth.manage_users') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Cancel
+                </a>
             </div>
         </div>
     </div>
