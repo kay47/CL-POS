@@ -1,285 +1,278 @@
 {% extends "base.html" %}
 
-{% block title %}Products - POS System{% endblock %}
+{% block title %}Products - MY LORD ENTERPRISE POS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header-bar {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.75rem;
+    }
+    .page-title { font-size: 1.55rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.4px; display: flex; align-items: center; gap: 0.5rem; }
+    .page-title i { color: var(--gold); }
+
+    /* KPI strip */
+    .kpi-strip { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .kpi-tile {
+        flex: 1; min-width: 160px;
+        border-radius: var(--radius-lg); padding: 1.15rem 1.3rem;
+        border: none !important; color: #fff;
+        box-shadow: var(--shadow-md); position: relative; overflow: hidden;
+        transition: transform 0.2s;
+    }
+    .kpi-tile:hover { transform: translateY(-3px); }
+    .kpi-tile::after { content:''; position:absolute; bottom:-18px; right:-18px; width:80px; height:80px; border-radius:50%; background:rgba(255,255,255,0.1); pointer-events:none; }
+    .kpi-tile .kt-label { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; opacity:0.82; margin-bottom:0.3rem; }
+    .kpi-tile .kt-value { font-size:1.45rem; font-weight:800; letter-spacing:-0.5px; line-height:1; }
+    .kpi-tile .kt-sub   { font-size:0.7rem; opacity:0.62; margin-top:0.22rem; }
+    .kpi-blue   { background: linear-gradient(135deg,#1d4ed8,#3b82f6); }
+    .kpi-green  { background: linear-gradient(135deg,#059669,#10b981); }
+    .kpi-cyan   { background: linear-gradient(135deg,#0891b2,#06b6d4); }
+    .kpi-amber  { background: linear-gradient(135deg,#d97706,var(--gold)); }
+
+    /* Search + select row */
+    .toolbar-row { display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .search-wrap { position: relative; flex: 1; min-width: 200px; }
+    .search-wrap .si-icon { position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem; pointer-events: none; }
+    .search-wrap input { padding-left: 2.5rem !important; }
+    .select-info { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; font-size: 0.82rem; }
+
+    /* Status text */
+    .status-ok     { color: #059669; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem; }
+    .status-low    { color: #d97706; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem; }
+    .status-out    { color: #dc2626; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem; }
+
+    /* Price sub-row */
+    .price-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+    /* Stock value */
+    .stock-val { font-weight: 700; color: var(--text-primary); }
+    .stock-retail { font-size: 0.72rem; color: var(--text-muted); }
+
+    /* Action cell */
+    .action-cell .btn { padding: 0.3rem 0.55rem; font-size: 0.76rem; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 4rem 2rem; }
+    .empty-state .es-icon { width: 80px; height: 80px; background: var(--surface-2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-size: 2.2rem; color: var(--text-muted); }
+
+    /* Bulk update modal form */
+    #bulk-products-list .selected-products-list div { font-size: 0.84rem; padding: 0.4rem 0; border-bottom: 1px solid var(--border); }
+    #bulk-products-list .selected-products-list div:last-child { border: none; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-md-6">
-        <h2>Products</h2>
-    </div>
-    <div class="col-md-6 text-end">
-        {% if current_user.is_admin() or current_user.is_manager() %}
-            <div class="btn-group" role="group">
-                <a href="{{ url_for('products.add_product') }}" class="btn btn-success">
-                    <i class="bi bi-plus-circle"></i> Add Product
-                </a>
-                <a href="{{ url_for('products.bulk_add_products') }}" class="btn btn-info">
-                    <i class="bi bi-upload"></i> Bulk Add
-                </a>
-                <button type="button" class="btn btn-warning" id="bulk-update-btn" disabled>
-                    <i class="bi bi-pencil-square"></i> Bulk Update
-                </button>
-                {% if current_user.is_admin() %}
-                <button type="button" class="btn btn-danger" id="bulk-delete-btn" disabled>
-                    <i class="bi bi-trash"></i> Delete Selected
-                </button>
-                {% endif %}
-            </div>
+
+<div class="page-header-bar">
+    <h2 class="page-title"><i class="bi bi-box-seam-fill"></i> Products</h2>
+
+    {% if current_user.is_admin() or current_user.is_manager() %}
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('products.add_product') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Add Product
+        </a>
+        <a href="{{ url_for('products.bulk_add_products') }}" class="btn btn-outline-primary">
+            <i class="bi bi-upload"></i> Bulk Add
+        </a>
+        <button type="button" class="btn btn-outline-warning" id="bulk-update-btn" disabled>
+            <i class="bi bi-pencil-square"></i> Bulk Update
+        </button>
+        {% if current_user.is_admin() %}
+        <button type="button" class="btn btn-outline-danger" id="bulk-delete-btn" disabled>
+            <i class="bi bi-trash3"></i> Delete Selected
+        </button>
         {% endif %}
     </div>
+    {% endif %}
 </div>
 
-<div class="row mb-4">
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card text-white bg-primary">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Total Stock Value</h6>
-                        <h4 class="mb-0">GHS {{ (total_stock_value or 0)|currency }}</h4>
-                        <small>Cost Price</small>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-box-seam fs-2"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+<!-- KPI Strip -->
+<div class="kpi-strip">
+    <div class="kpi-tile kpi-blue">
+        <div class="kt-label">Stock Cost Value</div>
+        <div class="kt-value">GHS {{ (total_stock_value or 0)|currency }}</div>
+        <div class="kt-sub">at cost price</div>
     </div>
-    
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card text-white bg-success">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Retail Value</h6>
-                        <h4 class="mb-0">GHS {{ (total_retail_value or 0)|currency }}</h4>
-                        <small>Selling Price</small>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-currency-dollar fs-2"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="kpi-tile kpi-green">
+        <div class="kt-label">Retail Value</div>
+        <div class="kt-value">GHS {{ (total_retail_value or 0)|currency }}</div>
+        <div class="kt-sub">at selling price</div>
     </div>
-    
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card text-white bg-info">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Potential Profit</h6>
-                        <h4 class="mb-0">GHS {{ (potential_profit or 0)|currency }}</h4>
-                        <small>If all sold</small>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-graph-up fs-2"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="kpi-tile kpi-cyan">
+        <div class="kt-label">Potential Profit</div>
+        <div class="kt-value">GHS {{ (potential_profit or 0)|currency }}</div>
+        <div class="kt-sub">if all sold</div>
     </div>
-    
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card text-white bg-warning">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Stock Status</h6>
-                        <h4 class="mb-0">{{ total_products or 0 }}</h4>
-                        <small>
-                            {{ low_stock_count or 0 }} low, {{ out_of_stock_count or 0 }} out
-                        </small>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-exclamation-triangle fs-2"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="kpi-tile kpi-amber">
+        <div class="kt-label">Stock Status</div>
+        <div class="kt-value">{{ total_products or 0 }}</div>
+        <div class="kt-sub">{{ low_stock_count or 0 }} low · {{ out_of_stock_count or 0 }} out</div>
     </div>
 </div>
 
-<div class="row mb-3">
-    <div class="col-md-6">
-        <div class="input-group">
-            <input type="text" id="product-search" name="q" 
-                   class="form-control" placeholder="Search products..." 
-                   value="{{ search or '' }}"
-                   autocomplete="off">
-            <button class="btn btn-outline-secondary" type="button" id="search-btn">
-                <i class="bi bi-search"></i> Search
-            </button>
-        </div>
+<!-- Toolbar -->
+<div class="toolbar-row">
+    <div class="search-wrap">
+        <i class="bi bi-search si-icon"></i>
+        <input type="text" id="product-search" name="q"
+               class="form-control" placeholder="Search products…"
+               value="{{ search or '' }}" autocomplete="off">
     </div>
-    <div class="col-md-6">
-        <div class="d-flex justify-content-end align-items-center">
-            <label class="me-2">
-                <input type="checkbox" id="select-all-products" class="form-check-input"> 
-                Select All
-            </label>
-            <span id="selected-count" class="badge bg-secondary">0 selected</span>
-        </div>
+    <div class="select-info">
+        {% if current_user.is_admin() or current_user.is_manager() %}
+        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-weight:600;color:var(--text-body)">
+            <input type="checkbox" id="select-all-products" class="form-check-input" style="margin:0">
+            Select All
+        </label>
+        {% endif %}
+        <span id="selected-count" class="badge bg-secondary">0 selected</span>
     </div>
 </div>
 
+<!-- Table Card -->
 <div class="card">
-    <div class="card-body">
+    <div class="card-body p-0">
         {% if products.items %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            {% if current_user.is_admin() or current_user.is_manager() %}
-                            <th width="50">
-                                <input type="checkbox" id="select-all-header" class="form-check-input">
-                            </th>
-                            {% endif %}
-                            <th>SKU</th>
-                            <th>Name</th>
-                            <th>Purchase Price</th>
-                            <th>Full Pack Price</th>
-                            <th>Stock</th>
-                            <th>Stock Value</th>
-                            <th>Status</th>
-                            {% if current_user.is_admin() or current_user.is_manager() %}
-                            <th>Actions</th>
-                            {% endif %}
-                        </tr>
-                    </thead>
-                    <tbody id="products-table-body">    
-                        {% for product in products.items %}
-                        <tr data-product-id="{{ product.id }}">
-                            {% if current_user.is_admin() or current_user.is_manager() %}
-                            <td>
-                                <input type="checkbox" class="product-checkbox form-check-input" 
-                                       value="{{ product.id }}" 
-                                       data-has-sales="{{ 'true' if product.sale_items else 'false' }}">
-                            </td>
-                            {% endif %}
-                            <td><code>{{ product.sku }}</code></td>
-                            <td>
-                                <strong>{{ product.name }}</strong>
-                                {% if product.description %}
-                                    <br><small class="text-muted">{{ product.description[:50] }}{% if product.description|length > 50 %}...{% endif %}</small>
-                                {% endif %}
-                            </td>
-                            <td class="editable-field" data-field="purchase_price" data-product-id="{{ product.id }}">
-                                {{ product.purchase_price | format_currency }}
-                            </td>
-                            <td class="editable-field" data-field="full_price" data-product-id="{{ product.id }}">
-                                {{ product.full_price | format_currency }}
-                                <br><small class="text-muted">
-                                    Half: {{ product.half_price | format_currency }} | 
-                                    Quarter: {{ product.quarter_price | format_currency }}
-                                </small>
-                            </td>
-                            <td class="editable-field" data-field="quantity" data-product-id="{{ product.id }}">
-                                <span class="badge bg-{{ 'danger' if product.quantity == 0 else ('warning' if product.quantity <= 5 else 'success') }}">
-                                    {{ product.quantity }}
-                                </span>
-                            </td>
-                            <td>
-                                <strong>GHS {{ (product.purchase_price * product.quantity)|currency }}</strong>
-                                <br><small class="text-muted">
-                                    Retail: GHS {{ (product.full_price * product.quantity)|currency }}
-                                </small>
-                            </td>
-                            <td>
-                                {% if product.quantity == 0 %}
-                                    <span class="text-danger"><i class="bi bi-exclamation-triangle"></i> Out of Stock</span>
-                                {% elif product.quantity <= 5 %}
-                                    <span class="text-warning"><i class="bi bi-exclamation-circle"></i> Low Stock</span>
-                                {% else %}
-                                    <span class="text-success"><i class="bi bi-check-circle"></i> In Stock</span>
-                                {% endif %}
-                            </td>
-                            {% if current_user.is_admin() or current_user.is_manager() %}
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{{ url_for('products.edit_product', product_id=product.id) }}" 
-                                       class="btn btn-outline-primary">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    {% if not product.sale_items %}
-                                    <form method="POST" action="{{ url_for('products.delete_product', product_id=product.id) }}" 
-                                          style="display: inline;" 
-                                          onsubmit="return confirm('Are you sure you want to delete {{ product.name }}?')">
-                                        <button type="submit" class="btn btn-outline-danger">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
-                                    {% else %}
-                                    <button type="button" class="btn btn-outline-secondary" disabled title="Cannot delete - has sales history">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    {% endif %}
-                                </div>
-                            </td>
-                            {% endif %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            
-            {% if products.pages > 1 %}
-                <nav aria-label="Products pagination">
-                    <ul class="pagination justify-content-center">
-                        {% if products.has_prev %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('products.list_products', page=products.prev_num, q=search, category=category_filter) }}">
-                                    <i class="bi bi-chevron-left"></i> Previous
-                                </a>
-                            </li>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        {% if current_user.is_admin() or current_user.is_manager() %}
+                        <th style="width:44px">
+                            <input type="checkbox" id="select-all-header" class="form-check-input">
+                        </th>
                         {% endif %}
-                        
-                        {% for page_num in products.iter_pages() %}
-                            {% if page_num %}
-                                {% if page_num != products.page %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('products.list_products', page=page_num, q=search, category=category_filter) }}">{{ page_num }}</a>
-                                    </li>
-                                {% else %}
-                                    <li class="page-item active">
-                                        <span class="page-link">{{ page_num }}</span>
-                                    </li>
-                                {% endif %}
+                        <th>SKU</th>
+                        <th>Name</th>
+                        <th>Purchase Price</th>
+                        <th>Selling Prices</th>
+                        <th class="text-center">Stock</th>
+                        <th>Stock Value</th>
+                        <th>Status</th>
+                        {% if current_user.is_admin() or current_user.is_manager() %}
+                        <th class="text-center">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody id="products-table-body">
+                    {% for product in products.items %}
+                    <tr data-product-id="{{ product.id }}">
+                        {% if current_user.is_admin() or current_user.is_manager() %}
+                        <td>
+                            <input type="checkbox" class="product-checkbox form-check-input"
+                                   value="{{ product.id }}"
+                                   data-has-sales="{{ 'true' if product.sale_items else 'false' }}">
+                        </td>
+                        {% endif %}
+                        <td><code>{{ product.sku }}</code></td>
+                        <td>
+                            <div style="font-weight:700;color:var(--text-primary);font-size:0.875rem">{{ product.name }}</div>
+                            {% if product.description %}
+                            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.1rem">
+                                {{ product.description[:55] }}{% if product.description|length > 55 %}…{% endif %}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="editable-field" data-field="purchase_price" data-product-id="{{ product.id }}">
+                            <span style="font-weight:600">{{ product.purchase_price | format_currency }}</span>
+                        </td>
+                        <td class="editable-field" data-field="full_price" data-product-id="{{ product.id }}">
+                            <span style="font-weight:700;color:#059669">{{ product.full_price | format_currency }}</span>
+                            <div class="price-sub">Half: {{ product.half_price | format_currency }} · Qtr: {{ product.quarter_price | format_currency }}</div>
+                        </td>
+                        <td class="text-center editable-field" data-field="quantity" data-product-id="{{ product.id }}">
+                            <span class="badge {{ 'bg-danger' if product.quantity == 0 else ('bg-warning' if product.quantity <= 5 else 'bg-success') }}">
+                                {{ product.quantity }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="stock-val">GHS {{ (product.purchase_price * product.quantity)|currency }}</div>
+                            <div class="stock-retail">Retail: GHS {{ (product.full_price * product.quantity)|currency }}</div>
+                        </td>
+                        <td>
+                            {% if product.quantity == 0 %}
+                                <span class="status-out"><i class="bi bi-x-circle-fill"></i> Out of Stock</span>
+                            {% elif product.quantity <= 5 %}
+                                <span class="status-low"><i class="bi bi-exclamation-circle-fill"></i> Low Stock</span>
                             {% else %}
-                                <li class="page-item disabled">
-                                    <span class="page-link">...</span>
-                                </li>
+                                <span class="status-ok"><i class="bi bi-check-circle-fill"></i> In Stock</span>
                             {% endif %}
-                        {% endfor %}
-                        
-                        {% if products.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('products.list_products', page=products.next_num, q=search, category=category_filter) }}">
-                                    Next <i class="bi bi-chevron-right"></i>
+                        </td>
+                        {% if current_user.is_admin() or current_user.is_manager() %}
+                        <td class="text-center action-cell">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('products.edit_product', product_id=product.id) }}"
+                                   class="btn btn-outline-primary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
                                 </a>
-                            </li>
+                                {% if not product.sale_items %}
+                                <form method="POST" action="{{ url_for('products.delete_product', product_id=product.id) }}"
+                                      style="display:inline"
+                                      onsubmit="return confirm('Delete {{ product.name }}?')">
+                                    <button type="submit" class="btn btn-outline-danger" title="Delete">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <button type="button" class="btn btn-outline-secondary" disabled title="Has sales history">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
                         {% endif %}
-                    </ul>
-                </nav>
-            {% endif %}
-        {% else %}
-            <div class="text-center py-5">
-                <i class="bi bi-inbox display-1 text-muted"></i>
-                <h3 class="text-muted mt-3">No Products Found</h3>
-                <p class="text-muted">
-                    {% if search %}
-                        No products match your search criteria.
-                    {% else %}
-                        No products have been added yet.
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if products.pages > 1 %}
+        <div class="p-3 border-top" style="border-color:var(--border)!important">
+            <nav>
+                <ul class="pagination justify-content-center mb-0">
+                    {% if products.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('products.list_products', page=products.prev_num, q=search, category=category_filter) }}">
+                            <i class="bi bi-chevron-left"></i> Previous
+                        </a>
+                    </li>
                     {% endif %}
-                </p>
-                {% if (current_user.is_admin() or current_user.is_manager()) and not search %}
-                    <a href="{{ url_for('products.add_product') }}" class="btn btn-primary">
-                        <i class="bi bi-plus-circle"></i> Add Your First Product
-                    </a>
-                {% endif %}
-            </div>
+                    {% for page_num in products.iter_pages() %}
+                        {% if page_num %}
+                            <li class="page-item {{ 'active' if page_num == products.page else '' }}">
+                                <a class="page-link" href="{{ url_for('products.list_products', page=page_num, q=search, category=category_filter) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if products.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('products.list_products', page=products.next_num, q=search, category=category_filter) }}">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <div class="es-icon"><i class="bi bi-box-seam"></i></div>
+            <h4 style="font-weight:700;color:var(--text-primary);margin-bottom:0.5rem">No Products Found</h4>
+            <p class="text-muted" style="font-size:0.875rem">
+                {% if search %}No products match your search.{% else %}No products have been added yet.{% endif %}
+            </p>
+            {% if (current_user.is_admin() or current_user.is_manager()) and not search %}
+            <a href="{{ url_for('products.add_product') }}" class="btn btn-primary mt-2">
+                <i class="bi bi-plus-circle"></i> Add Your First Product
+            </a>
+            {% endif %}
+        </div>
         {% endif %}
     </div>
 </div>
@@ -289,19 +282,14 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Bulk Update Products</h5>
+                <h5 class="modal-title"><i class="bi bi-pencil-square" style="color:var(--gold)"></i> Bulk Update Products</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div id="bulk-update-form">
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i>
-                        You can edit multiple products at once. Leave fields blank to keep current values.
-                    </div>
-                    <div id="bulk-products-list">
-                        <!-- Dynamic content will be inserted here -->
-                    </div>
+                <div class="alert alert-info" style="font-size:0.84rem">
+                    <i class="bi bi-info-circle-fill"></i> Leave fields blank to keep current values.
                 </div>
+                <div id="bulk-products-list"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -316,344 +304,164 @@
 {% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    // Global variables
     let selectedProducts = new Set();
-    const searchInput = document.getElementById("product-search");
-    const tableBody = document.getElementById("products-table-body");
-    const selectAllCheckbox = document.getElementById("select-all-products");
-    const bulkUpdateBtn = document.getElementById("bulk-update-btn");
-    const bulkDeleteBtn = document.getElementById("bulk-delete-btn");
-    const selectedCountBadge = document.getElementById("selected-count");
+    const searchInput    = document.getElementById("product-search");
+    const selectAll      = document.getElementById("select-all-products");
+    const bulkUpdateBtn  = document.getElementById("bulk-update-btn");
+    const bulkDeleteBtn  = document.getElementById("bulk-delete-btn");
+    const selectedBadge  = document.getElementById("selected-count");
 
-    // Timer ID for debouncing/throttling the input search
-    let searchTimerId = null;
+    let searchTimer = null;
 
-    // Function to perform the server-side search/reload
     function doSearch() {
-        const query = searchInput.value.trim();
-        const currentUrl = new URL(window.location.href);
-
-        // Set the new search query (q) or remove it if empty
-        if (query) {
-            currentUrl.searchParams.set('q', query);
-        } else {
-            currentUrl.searchParams.delete('q');
-        }
-
-        // Always reset to page 1 for a new search/filter
-        currentUrl.searchParams.set('page', '1');
-
-        // Redirect to the new URL, preserving all other parameters
-        window.location.href = currentUrl.toString();
+        const q = searchInput.value.trim();
+        const url = new URL(window.location.href);
+        q ? url.searchParams.set('q', q) : url.searchParams.delete('q');
+        url.searchParams.set('page', '1');
+        window.location.href = url.toString();
     }
 
-    // "Search while typing" functionality (using a debounce to prevent excessive requests)
     if (searchInput) {
-        searchInput.addEventListener("input", function () {
-            // Clear any previous timer
-            clearTimeout(searchTimerId);
-
-            // Set a new timer to execute doSearch after 300ms of no further input
-            searchTimerId = setTimeout(doSearch, 300);
-        });
+        searchInput.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(doSearch, 300); });
+        searchInput.addEventListener("keypress", e => { if (e.key === 'Enter') { clearTimeout(searchTimer); doSearch(); } });
     }
-    
-    // Search Button Click Handler
+
     const searchBtn = document.getElementById('search-btn');
-    if (searchBtn) {
-        searchBtn.addEventListener('click', doSearch);
-    }
-
-    // Search Input Enter Key Handler
-    if (searchInput) {
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                // Immediately execute the search without waiting for the timeout
-                clearTimeout(searchTimerId); 
-                doSearch();
-            }
-        });
-    }
-
-    // Checkbox selection logic
-    function attachCheckboxListeners() {
-        document.querySelectorAll('.product-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', updateSelectionState);
-        });
-    }
+    if (searchBtn) searchBtn.addEventListener('click', doSearch);
 
     function updateSelectionState() {
         selectedProducts.clear();
-        document.querySelectorAll('.product-checkbox:checked').forEach(checkbox => {
-            selectedProducts.add(parseInt(checkbox.value));
-        });
-
-        const selectedCount = selectedProducts.size;
-        if (selectedCountBadge) {
-            selectedCountBadge.textContent = `${selectedCount} selected`;
-        }
-
-        if (bulkUpdateBtn) bulkUpdateBtn.disabled = selectedCount === 0;
-        if (bulkDeleteBtn) bulkDeleteBtn.disabled = selectedCount === 0;
-
-        if (selectAllCheckbox) {
-            const allCheckboxes = document.querySelectorAll('.product-checkbox');
-            const checkedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
-            
-            if (checkedCheckboxes.length === 0) {
-                selectAllCheckbox.indeterminate = false;
-                selectAllCheckbox.checked = false;
-            } else if (checkedCheckboxes.length === allCheckboxes.length) {
-                selectAllCheckbox.indeterminate = false;
-                selectAllCheckbox.checked = true;
-            } else {
-                selectAllCheckbox.indeterminate = true;
-                selectAllCheckbox.checked = false;
-            }
+        document.querySelectorAll('.product-checkbox:checked').forEach(cb => selectedProducts.add(parseInt(cb.value)));
+        const count = selectedProducts.size;
+        if (selectedBadge) selectedBadge.textContent = `${count} selected`;
+        if (bulkUpdateBtn) bulkUpdateBtn.disabled = count === 0;
+        if (bulkDeleteBtn) bulkDeleteBtn.disabled = count === 0;
+        if (selectAll) {
+            const all = document.querySelectorAll('.product-checkbox');
+            const checked = document.querySelectorAll('.product-checkbox:checked');
+            selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+            selectAll.checked = checked.length === all.length && all.length > 0;
         }
     }
 
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            const checkboxes = document.querySelectorAll('.product-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
+    document.querySelectorAll('.product-checkbox').forEach(cb => cb.addEventListener('change', updateSelectionState));
+
+    [selectAll, document.getElementById('select-all-header')].forEach(el => {
+        if (el) el.addEventListener('change', function () {
+            document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = this.checked);
             updateSelectionState();
         });
-    }
+    });
 
-    const headerCheckbox = document.getElementById('select-all-header');
-    if (headerCheckbox) {
-        headerCheckbox.addEventListener('change', function() {
-            const checkboxes = document.querySelectorAll('.product-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-            updateSelectionState();
-        });
-    }
-
-    // Bulk Update Functionality
+    // Bulk Update
     const bulkUpdateModal = document.getElementById('bulkUpdateModal');
     const bulkProductsList = document.getElementById('bulk-products-list');
-    const saveBulkUpdateBtn = document.getElementById('save-bulk-update');
-    
-    let modalInstance = null;
-    if (bulkUpdateModal) {
-        modalInstance = new bootstrap.Modal(bulkUpdateModal);
-    }
+    const saveBulkBtn = document.getElementById('save-bulk-update');
+    let modalInstance = bulkUpdateModal ? new bootstrap.Modal(bulkUpdateModal) : null;
 
-    // Bulk Update Button Click Handler
     if (bulkUpdateBtn) {
-        bulkUpdateBtn.addEventListener('click', function() {
-            const selectedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
-            
-            if (selectedCheckboxes.length === 0) {
-                alert('Please select at least one product to update.');
-                return;
-            }
+        bulkUpdateBtn.addEventListener('click', function () {
+            const selected = document.querySelectorAll('.product-checkbox:checked');
+            if (!selected.length) { alert('Please select at least one product.'); return; }
 
-            // Clear previous content
-            if (bulkProductsList) {
-                bulkProductsList.innerHTML = '';
-
-                // Create form for selected products
-                const form = document.createElement('form');
-                form.id = 'bulk-update-form';
-                
-                // Add bulk update fields
-                form.innerHTML = `
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Purchase Price (GHS)</label>
-                            <input type="number" class="form-control" id="bulk-purchase-price" step="0.01" placeholder="Leave blank to keep current">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Full Price (GHS)</label>
-                            <input type="number" class="form-control" id="bulk-full-price" step="0.01" placeholder="Leave blank to keep current">
-                        </div>
+            bulkProductsList.innerHTML = `
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Purchase Price (GHS)</label>
+                        <input type="number" class="form-control" id="bulk-purchase-price" step="0.01" placeholder="Keep current">
                     </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Half Price (GHS)</label>
-                            <input type="number" class="form-control" id="bulk-half-price" step="0.01" placeholder="Leave blank for auto-calculation">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Stock Quantity</label>
-                            <input type="number" class="form-control" id="bulk-quantity" placeholder="Leave blank to keep current">
-                        </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Full Price (GHS)</label>
+                        <input type="number" class="form-control" id="bulk-full-price" step="0.01" placeholder="Keep current">
                     </div>
-                    <div class="mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Half Price (GHS)</label>
+                        <input type="number" class="form-control" id="bulk-half-price" step="0.01" placeholder="Auto-calculate">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Stock Quantity</label>
+                        <input type="number" class="form-control" id="bulk-quantity" placeholder="Keep current">
+                    </div>
+                    <div class="col-12">
                         <label class="form-label">Category</label>
                         <select class="form-select" id="bulk-category">
-                            <option value="">Keep current category</option>
-                            <option value="electronics">Electronics</option>
-                            <option value="clothing">Clothing</option>
-                            <option value="food">Food & Beverages</option>
-                            <option value="beauty">Beauty & Personal Care</option>
-                            <option value="books">Books & Stationery</option>
-                            <option value="home">Home & Garden</option>
-                            <option value="sports">Sports & Recreation</option>
-                            <option value="automotive">Automotive</option>
-                            <option value="toys">Toys & Games</option>
-                            <option value="health">Health & Wellness</option>
-                            <option value="jewelry">Jewelry & Accessories</option>
-                            <option value="music">Music & Instruments</option>
-                            <option value="pets">Pet Supplies</option>
-                            <option value="office">Office Supplies</option>
-                            <option value="tools">Tools & Hardware</option>
-                            <option value="other">Other</option>
+                            <option value="">Keep current</option>
+                            <option value="electronics">Electronics</option><option value="clothing">Clothing</option>
+                            <option value="food">Food & Beverages</option><option value="beauty">Beauty & Personal Care</option>
+                            <option value="books">Books & Stationery</option><option value="home">Home & Garden</option>
+                            <option value="sports">Sports & Recreation</option><option value="other">Other</option>
                         </select>
                     </div>
-                    <hr>
-                    <h6>Selected Products (${selectedCheckboxes.length}):</h6>
-                    <div class="selected-products-list">
-                        ${Array.from(selectedCheckboxes).map(checkbox => {
-                            const row = checkbox.closest('tr');
-                            const sku = row.querySelector('code').textContent;
-                            const name = row.querySelector('strong').textContent;
-                            return `
-                                <div class="d-flex justify-content-between align-items-center py-1">
-                                    <span>${sku} - ${name}</span>
-                                    <input type="hidden" name="product_ids[]" value="${checkbox.value}">
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `;
-
-                bulkProductsList.appendChild(form);
-                if (modalInstance) {
-                    modalInstance.show();
-                }
-            }
+                </div>
+                <hr>
+                <div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:0.5rem">Selected (${selected.length})</div>
+                <div class="selected-products-list">${
+                    Array.from(selected).map(cb => {
+                        const row = cb.closest('tr');
+                        const sku  = row.querySelector('code')?.textContent || '';
+                        const name = row.querySelector('[style*="font-weight:700"]')?.textContent?.trim() || '';
+                        return `<div><code>${sku}</code> — ${name}<input type="hidden" name="product_ids[]" value="${cb.value}"></div>`;
+                    }).join('')
+                }</div>`;
+            modalInstance?.show();
         });
     }
 
-    // Save Bulk Update Handler
-    if (saveBulkUpdateBtn) {
-        saveBulkUpdateBtn.addEventListener('click', function() {
-            const form = document.getElementById('bulk-update-form');
-            if (!form) return;
+    if (saveBulkBtn) {
+        saveBulkBtn.addEventListener('click', function () {
+            const form = bulkProductsList;
+            const pp = document.getElementById('bulk-purchase-price').value;
+            const fp = document.getElementById('bulk-full-price').value;
+            if (pp && fp && parseFloat(pp) >= parseFloat(fp)) { alert('Purchase price must be less than full price.'); return; }
+            const ids = Array.from(form.querySelectorAll('input[name="product_ids[]"]')).map(i => i.value);
+            if (!ids.length) return;
 
-            // Get form data
-            const purchasePrice = document.getElementById('bulk-purchase-price').value;
-            const fullPrice = document.getElementById('bulk-full-price').value;
-            const halfPrice = document.getElementById('bulk-half-price').value;
-            const quantity = document.getElementById('bulk-quantity').value;
-            const category = document.getElementById('bulk-category').value;
-            
-            // Get selected product IDs
-            const productIds = Array.from(form.querySelectorAll('input[name="product_ids[]"]')).map(input => input.value);
+            saveBulkBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Updating…';
+            saveBulkBtn.disabled = true;
 
-            if (productIds.length === 0) {
-                alert('No products selected.');
-                return;
-            }
-
-            // Basic validation
-            if (purchasePrice && fullPrice && parseFloat(purchasePrice) >= parseFloat(fullPrice)) {
-                alert('Purchase price must be less than full price.');
-                return;
-            }
-
-            // Prepare data for submission
-            const updateData = {
-                product_ids: productIds,
-                purchase_price: purchasePrice || null,
-                full_price: fullPrice || null,
-                half_price: halfPrice || null,
-                quantity: quantity || null,
-                category: category || null
-            };
-
-            // Show loading state
-            saveBulkUpdateBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Updating...';
-            saveBulkUpdateBtn.disabled = true;
-
-            // Send AJAX request
             fetch('{{ url_for("products.bulk_update_products") }}', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify(updateData)
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({
+                    product_ids: ids,
+                    purchase_price: pp || null,
+                    full_price: fp || null,
+                    half_price: document.getElementById('bulk-half-price').value || null,
+                    quantity: document.getElementById('bulk-quantity').value || null,
+                    category: document.getElementById('bulk-category').value || null
+                })
             })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                if (data.success) {
-                    alert(`Successfully updated ${data.updated_count} products!`);
-                    if (modalInstance) {
-                        modalInstance.hide();
-                    }
-                    window.location.reload(); // Reload to show updated data
-                } else {
-                    alert(`Error: ${data.message || 'Unknown error occurred'}`);
-                }
+                if (data.success) { alert(`Updated ${data.updated_count} products!`); modalInstance?.hide(); window.location.reload(); }
+                else alert(`Error: ${data.message || 'Unknown error'}`);
             })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while updating products.');
-            })
-            .finally(() => {
-                // Reset button state
-                saveBulkUpdateBtn.innerHTML = 'Save Changes';
-                saveBulkUpdateBtn.disabled = false;
-            });
+            .catch(() => alert('An error occurred.'))
+            .finally(() => { saveBulkBtn.innerHTML = 'Save Changes'; saveBulkBtn.disabled = false; });
         });
     }
 
-    // Bulk Delete Functionality
+    // Bulk Delete
     if (bulkDeleteBtn) {
-        bulkDeleteBtn.addEventListener('click', function() {
-            const selectedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
-            
-            if (selectedCheckboxes.length === 0) {
-                alert('Please select at least one product to delete.');
-                return;
-            }
+        bulkDeleteBtn.addEventListener('click', function () {
+            const selected = document.querySelectorAll('.product-checkbox:checked');
+            if (!selected.length) { alert('Please select at least one product.'); return; }
+            const withSales = Array.from(selected).filter(cb => cb.dataset.hasSales === 'true');
+            if (withSales.length) { alert(`Cannot delete ${withSales.length} product(s) with sales history.`); return; }
+            const names = Array.from(selected).map(cb => cb.closest('tr').querySelector('[style*="font-weight:700"]')?.textContent?.trim() || '');
+            if (!confirm(`Delete ${selected.length} product(s)?\n\n${names.slice(0,5).join(', ')}${names.length > 5 ? '…' : ''}`)) return;
 
-            // Check if any selected products have sales history
-            const productsWithSales = Array.from(selectedCheckboxes).filter(checkbox => 
-                checkbox.dataset.hasSales === 'true'
-            );
-
-            if (productsWithSales.length > 0) {
-                alert(`Cannot delete ${productsWithSales.length} product(s) that have sales history.`);
-                return;
-            }
-
-            const productNames = Array.from(selectedCheckboxes).map(checkbox => {
-                const row = checkbox.closest('tr');
-                return row.querySelector('strong').textContent;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ url_for("products.bulk_delete_products") }}';
+            Array.from(selected).forEach(cb => {
+                const inp = document.createElement('input'); inp.type = 'hidden'; inp.name = 'product_ids[]'; inp.value = cb.value;
+                form.appendChild(inp);
             });
-
-            if (confirm(`Are you sure you want to delete ${selectedCheckboxes.length} products?\n\n${productNames.slice(0, 5).join(', ')}${productNames.length > 5 ? '...' : ''}`)) {
-                const productIds = Array.from(selectedCheckboxes).map(checkbox => checkbox.value);
-                
-                // Create and submit form for bulk deletion
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '{{ url_for("products.bulk_delete_products") }}';
-                
-                productIds.forEach(id => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = 'product_ids[]';
-                    input.value = id;
-                    form.appendChild(input);
-                });
-                
-                document.body.appendChild(form);
-                form.submit();
-            }
+            document.body.appendChild(form); form.submit();
         });
     }
 
-    // Initialize
-    attachCheckboxListeners();
     updateSelectionState();
 });
 </script>

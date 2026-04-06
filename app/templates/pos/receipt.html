@@ -1,225 +1,478 @@
 {% extends "base.html" %}
 
-{% block title %}Receipt {{ sale.invoice_number }} - POS System{% endblock %}
+{% block title %}Receipt {{ sale.invoice_number }} - MY LORD ENTERPRISE POS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .receipt-outer {
+        display: flex;
+        justify-content: center;
+        padding: 1rem 1rem 2.5rem;
+    }
+
+    .receipt-col {
+        width: 100%;
+        max-width: 520px;
+    }
+
+    /* ── Page header row ── */
+    .receipt-page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .receipt-page-title {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        letter-spacing: -0.3px;
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .receipt-page-title i { color: var(--gold); }
+
+    /* ── Receipt card ── */
+    .receipt-card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl) !important;
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+    }
+
+    /* ── Receipt header (brand band) ── */
+    .receipt-brand-band {
+        background: var(--navy);
+        padding: 1.5rem 1.75rem 1.25rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .receipt-brand-band::before {
+        content: '';
+        position: absolute;
+        width: 200px; height: 200px;
+        border-radius: 50%;
+        border: 28px solid rgba(245,166,35,0.1);
+        bottom: -60px; right: -40px;
+        pointer-events: none;
+    }
+
+    .receipt-brand-band .brand-emblem {
+        width: 52px; height: 52px;
+        background: linear-gradient(135deg, var(--gold), var(--gold-light));
+        border-radius: 13px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.4rem; color: var(--navy);
+        margin: 0 auto 0.75rem;
+        box-shadow: 0 4px 14px rgba(245,166,35,0.35);
+    }
+
+    .receipt-brand-band h3 {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #fff;
+        letter-spacing: 0.3px;
+        margin-bottom: 0.2rem;
+    }
+
+    .receipt-brand-band .brand-sub {
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.45);
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+    }
+
+    /* Status pill inside the band */
+    .receipt-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin-top: 0.85rem;
+        padding: 0.3em 0.85em;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+    }
+
+    .rsp-completed { background: #dcfce7; color: #166534; }
+    .rsp-pending   { background: #fef9c3; color: #854d0e; }
+    .rsp-cancelled { background: #fee2e2; color: #991b1b; }
+
+    /* ── Receipt body ── */
+    .receipt-body { padding: 1.4rem 1.6rem; }
+
+    /* Meta info grid */
+    .receipt-meta {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .receipt-meta .rm-item { }
+    .receipt-meta .rm-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 0.1rem;
+    }
+    .receipt-meta .rm-value {
+        font-size: 0.84rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    /* Divider */
+    .receipt-divider {
+        height: 1px;
+        background: var(--border);
+        margin: 1rem 0;
+    }
+
+    .receipt-divider-dashed {
+        height: 1px;
+        background: repeating-linear-gradient(90deg, var(--border) 0, var(--border) 6px, transparent 6px, transparent 12px);
+        margin: 1rem 0;
+    }
+
+    /* ── Line items ── */
+    .line-item {
+        padding: 0.65rem 0;
+        border-bottom: 1px solid var(--surface-2);
+    }
+
+    .line-item:last-child { border-bottom: none; }
+
+    .li-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .li-name {
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.3;
+    }
+
+    .li-unit {
+        display: inline-flex;
+        align-items: center;
+        background: #cffafe;
+        color: #164e63;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 0.15em 0.5em;
+        border-radius: 4px;
+        margin-left: 0.35rem;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .li-sku {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        margin-top: 0.1rem;
+    }
+
+    .li-total {
+        font-size: 0.9rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        white-space: nowrap;
+    }
+
+    .li-bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .li-qty-price {
+        font-size: 0.77rem;
+        color: var(--text-muted);
+    }
+
+    .li-profit-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.74rem;
+        margin-top: 0.15rem;
+    }
+
+    .li-profit  { color: #2563eb; font-weight: 600; }
+    .li-margin  { color: var(--text-muted); }
+
+    /* ── Totals block ── */
+    .totals-block { margin-top: 0.25rem; }
+
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.35rem 0;
+        font-size: 0.875rem;
+    }
+
+    .total-row .tr-label { color: var(--text-muted); font-weight: 500; }
+    .total-row .tr-value { font-weight: 700; color: var(--text-primary); }
+
+    .total-row.tr-profit .tr-label { color: #2563eb; font-weight: 600; }
+    .total-row.tr-profit .tr-value { color: #2563eb; }
+
+    .total-row.tr-grand {
+        border-top: 2px solid var(--text-primary);
+        margin-top: 0.25rem;
+        padding-top: 0.6rem;
+    }
+    .total-row.tr-grand .tr-label { font-size: 0.95rem; font-weight: 800; color: var(--text-primary); }
+    .total-row.tr-grand .tr-value { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); }
+
+    .total-row.tr-paid .tr-value  { color: #059669; }
+    .total-row.tr-change .tr-value{ color: #0891b2; }
+
+    /* ── Pending alert ── */
+    .pending-notice {
+        background: #fef9c3;
+        border: 1.5px solid #fde68a;
+        border-radius: var(--radius-md);
+        padding: 0.75rem 1rem;
+        font-size: 0.8rem;
+        color: #78350f;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .pending-notice i { flex-shrink: 0; margin-top: 0.05rem; }
+
+    /* ── Footer message ── */
+    .receipt-footer-msg {
+        text-align: center;
+        padding: 1.1rem 1.5rem 1.4rem;
+        border-top: 1px solid var(--border);
+        background: var(--surface);
+    }
+
+    .receipt-footer-msg .rfm-thanks {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.2rem;
+    }
+
+    .receipt-footer-msg .rfm-sub {
+        font-size: 0.76rem;
+        color: var(--text-muted);
+    }
+
+    /* ── Action footer ── */
+    .receipt-actions {
+        display: flex;
+        gap: 0.65rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--border);
+        background: var(--white);
+    }
+
+    /* ── Print styles ── */
+    @media print {
+        .navbar, .receipt-page-header, .receipt-actions { display: none !important; }
+        .receipt-outer { padding: 0; }
+        .receipt-col   { max-width: 100%; }
+        .receipt-card  { border: none; box-shadow: none; border-radius: 0 !important; }
+        .receipt-brand-band { padding: 1rem; }
+        .receipt-body  { padding: 1rem; }
+        body, .receipt-body { font-size: 11px; }
+        .receipt-brand-band h3 { font-size: 13px; }
+        .li-total, .total-row.tr-grand .tr-value { font-size: 12px; }
+        .receipt-footer-msg { padding: 0.75rem; }
+        .container-fluid { margin-top: 0 !important; padding: 0 !important; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Receipt {{ sale.invoice_number }}</h5>
-                <button class="btn btn-primary btn-sm" onclick="window.print()">
+<div class="receipt-outer">
+    <div class="receipt-col">
+
+        <!-- Page action header (hidden on print) -->
+        <div class="receipt-page-header">
+            <div class="receipt-page-title">
+                <i class="bi bi-receipt"></i> Receipt {{ sale.invoice_number }}
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
                     <i class="bi bi-printer"></i> Print
                 </button>
-            </div>
-            <div class="card-body" id="receipt">
-                <!-- Receipt Header -->
-                <div class="text-center mb-4">
-                    <h3><strong>MY LORD ENTERPRISE POS SYSTEM</strong></h3>
-                    <p class="mb-1">Point of Sale Receipt</p>
-                    <hr>
-                </div>
-                
-                <!-- Sale Information -->
-                <div class="row mb-3">
-                    <div class="col-6">
-                        <strong>Invoice #:</strong> {{ sale.invoice_number }}
-                    </div>
-                    <div class="col-6 text-end">
-                        <strong>Date:</strong> {{ sale.created_at.strftime('%m/%d/%Y %I:%M %p') }}
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-6">
-                        <strong>Cashier:</strong> {{ sale.clerk.username }}
-                    </div>
-                    <div class="col-6 text-end">
-                        <strong>Items:</strong> {{ sale.sale_items|length }}
-                    </div>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col-6">
-                        <strong>Payment Method:</strong> 
-                        {% if sale.payment_method == 'cash' %}
-                            Cash
-                        {% elif sale.payment_method == 'card' %}
-                            Credit/Debit Card
-                        {% elif sale.payment_method == 'mobile_money' %}
-                            Mobile Money
-                        {% elif sale.payment_method == 'bank_transfer' %}
-                            Bank Transfer
-                        {% else %}
-                            {{ sale.payment_method.title() }}
-                        {% endif %}
-                    </div>
-                    <div class="col-6 text-end">
-                        <strong>Status:</strong>
-                        <span class="badge bg-{% if sale.status == 'completed' %}success{% elif sale.status == 'pending' %}warning{% else %}secondary{% endif %}">
-                            {{ sale.status.title() }}
-                        </span>
-                    </div>
-                </div>
-                
-                <hr>
-                
-                <!-- Items -->
-                <div class="mb-4">
-                    {% for item in sale.sale_items %}
-                        <div class="row mb-3">
-                            <div class="col-12">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div class="flex-grow-1">
-                                        <strong>{{ item.product.name }}</strong>
-                                        <span class="badge bg-info ms-2">{{ item.unit_display }}</span>
-                                        <br>
-                                        <small class="text-muted">{{ item.product.sku }}</small>
-                                    </div>
-                                </div>
-                                <div class="row mt-1">
-                                    <div class="col-6">
-                                        <small>{{ item.quantity }} × {{ item.price_at_sale | format_currency }}</small>
-                                    </div>
-                                    <div class="col-6 text-end">
-                                        <strong>{{ item.line_total | format_currency }}</strong>
-                                    </div>
-                                </div>
-                                {% if current_user.role in ['manager', 'admin'] %}
-                                <div class="row">
-                                    <div class="col-6">
-                                        <small class="text-primary">Profit: {{ item.line_profit | format_currency }}</small>
-                                    </div>
-                                    <div class="col-6 text-end">
-                                        <small class="text-muted">Margin: {{ "%.1f"|format((item.line_profit / item.line_total * 100) if item.line_total|float > 0 else 0) }}%</small>
-                                    </div>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% if not loop.last %}<hr class="my-2">{% endif %}
-                    {% endfor %}
-                </div>
-                
-                <hr class="border-dark">
-                
-                <!-- Totals -->
-                <div class="row mb-2">
-                    <div class="col-8">
-                        <strong>SUBTOTAL:</strong>
-                    </div>
-                    <div class="col-4 text-end">
-                        <strong>{{ sale.total_amount | format_currency }}</strong>
-                    </div>
-                </div>
-
                 {% if current_user.role in ['manager', 'admin'] %}
-                <div class="row mb-2">
-                    <div class="col-8">
-                        <strong class="text-primary">TOTAL PROFIT:</strong>
-                    </div>
-                    <div class="col-4 text-end">
-                        <strong class="text-primary">{{ sale.total_profit | format_currency }}</strong>
-                    </div>
-                </div>
-                {% endif %}
-
-                <hr>
-
-                <!-- Payment Information -->
-                <div class="row mb-2">
-                    <div class="col-8">
-                        <strong>AMOUNT PAID:</strong>
-                    </div>
-                    <div class="col-4 text-end">
-                        <strong>{{ sale.amount_paid | format_currency }}</strong>
-                    </div>
-                </div>
-
-                {% if sale.change_given > 0 %}
-                <div class="row mb-4">
-                    <div class="col-8">
-                        <strong>CHANGE:</strong>
-                    </div>
-                    <div class="col-4 text-end">
-                        <strong class="text-info">{{ sale.change_given | format_currency }}</strong>
-                    </div>
-                </div>
-                {% endif %}
-                
-                <hr>
-                
-                <!-- Footer -->
-                <div class="text-center text-muted">
-                    <p class="mb-1">Thank you for your business!</p>
-                    <p class="mb-0">Please keep this receipt for your records.</p>
-                    {% if sale.status == 'pending' %}
-                    <div class="alert alert-warning mt-3 mb-0">
-                        <small><strong>Note:</strong> This is a pending sale. Items will be deducted from inventory when completed.</small>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="card-footer text-center">
-                <a href="{{ url_for('pos.pos_page') }}" class="btn btn-success">
-                    <i class="bi bi-cart-plus"></i> New Sale
-                </a>
-                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-house"></i> Dashboard
-                </a>
-                {% if current_user.role in ['manager', 'admin'] %}
-                <a href="{{ url_for('pos.list_sales') }}" class="btn btn-outline-primary">
+                <a href="{{ url_for('pos.list_sales') }}" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-list"></i> All Sales
                 </a>
                 {% endif %}
             </div>
         </div>
+
+        <!-- Receipt Card -->
+        <div class="receipt-card" id="receipt">
+
+            <!-- Brand Band -->
+            <div class="receipt-brand-band">
+                <div class="brand-emblem"><i class="bi bi-shop-window"></i></div>
+                <h3>MY LORD ENTERPRISE</h3>
+                <div class="brand-sub">Point of Sale Receipt</div>
+                <div>
+                    <span class="receipt-status-pill rsp-{{ sale.status }}">
+                        <i class="bi bi-{{ 'check-circle-fill' if sale.status == 'completed' else 'clock-fill' if sale.status == 'pending' else 'x-circle-fill' }}"></i>
+                        {{ sale.status.title() }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Receipt Body -->
+            <div class="receipt-body">
+
+                <!-- Meta grid -->
+                <div class="receipt-meta">
+                    <div class="rm-item">
+                        <div class="rm-label">Invoice</div>
+                        <div class="rm-value" style="font-family:var(--font-mono)">{{ sale.invoice_number }}</div>
+                    </div>
+                    <div class="rm-item" style="text-align:right">
+                        <div class="rm-label">Date & Time</div>
+                        <div class="rm-value">{{ sale.created_at.strftime('%m/%d/%Y') }}</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted)">{{ sale.created_at.strftime('%I:%M %p') }}</div>
+                    </div>
+                    <div class="rm-item">
+                        <div class="rm-label">Cashier</div>
+                        <div class="rm-value">{{ sale.clerk.username }}</div>
+                    </div>
+                    <div class="rm-item" style="text-align:right">
+                        <div class="rm-label">Payment</div>
+                        <div class="rm-value">
+                            {% if sale.payment_method == 'cash' %}Cash
+                            {% elif sale.payment_method == 'card' %}Card
+                            {% elif sale.payment_method == 'mobile_money' %}Mobile Money
+                            {% elif sale.payment_method == 'bank_transfer' %}Bank Transfer
+                            {% else %}{{ sale.payment_method.title() }}{% endif %}
+                        </div>
+                    </div>
+                    <div class="rm-item">
+                        <div class="rm-label">Items</div>
+                        <div class="rm-value">{{ sale.sale_items|length }}</div>
+                    </div>
+                </div>
+
+                <div class="receipt-divider-dashed"></div>
+
+                <!-- Line items -->
+                <div class="line-items">
+                    {% for item in sale.sale_items %}
+                    <div class="line-item">
+                        <div class="li-top">
+                            <div>
+                                <div class="li-name">
+                                    {{ item.product.name }}
+                                    <span class="li-unit">{{ item.unit_display }}</span>
+                                </div>
+                                <div class="li-sku">{{ item.product.sku }}</div>
+                            </div>
+                            <div class="li-total">GHS {{ item.line_total | format_currency }}</div>
+                        </div>
+                        <div class="li-bottom">
+                            <div class="li-qty-price">{{ item.quantity }} × GHS {{ item.price_at_sale | format_currency }}</div>
+                        </div>
+                        {% if current_user.role in ['manager', 'admin'] %}
+                        <div class="li-profit-row">
+                            <span class="li-profit"><i class="bi bi-graph-up"></i> Profit: GHS {{ item.line_profit | format_currency }}</span>
+                            <span class="li-margin">{{ "%.1f"|format((item.line_profit / item.line_total * 100) if item.line_total|float > 0 else 0) }}% margin</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="receipt-divider"></div>
+
+                <!-- Totals -->
+                <div class="totals-block">
+                    <div class="total-row tr-grand">
+                        <span class="tr-label">SUBTOTAL</span>
+                        <span class="tr-value">GHS {{ sale.total_amount | format_currency }}</span>
+                    </div>
+
+                    {% if current_user.role in ['manager', 'admin'] %}
+                    <div class="total-row tr-profit">
+                        <span class="tr-label"><i class="bi bi-graph-up"></i> GROSS PROFIT</span>
+                        <span class="tr-value">GHS {{ sale.total_profit | format_currency }}</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="receipt-divider" style="margin:0.5rem 0"></div>
+
+                    <div class="total-row tr-paid">
+                        <span class="tr-label">AMOUNT PAID</span>
+                        <span class="tr-value">GHS {{ sale.amount_paid | format_currency }}</span>
+                    </div>
+
+                    {% if sale.change_given > 0 %}
+                    <div class="total-row tr-change">
+                        <span class="tr-label">CHANGE</span>
+                        <span class="tr-value">GHS {{ sale.change_given | format_currency }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if sale.status == 'pending' %}
+                <div class="pending-notice">
+                    <i class="bi bi-clock-fill"></i>
+                    <div><strong>Pending Sale:</strong> Items will be deducted from inventory once this sale is marked completed.</div>
+                </div>
+                {% endif %}
+
+            </div><!-- /.receipt-body -->
+
+            <!-- Thank you footer -->
+            <div class="receipt-footer-msg">
+                <div class="rfm-thanks">Thank you for your business!</div>
+                <div class="rfm-sub">Please keep this receipt for your records.</div>
+            </div>
+
+            <!-- Action buttons (hidden on print) -->
+            <div class="receipt-actions">
+                <a href="{{ url_for('pos.pos_page') }}" class="btn btn-success btn-sm">
+                    <i class="bi bi-cart-plus"></i> New Sale
+                </a>
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-grid-1x2"></i> Dashboard
+                </a>
+                {% if current_user.role in ['manager', 'admin'] %}
+                <a href="{{ url_for('pos.list_sales') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-list"></i> All Sales
+                </a>
+                {% endif %}
+            </div>
+
+        </div><!-- /.receipt-card -->
+
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<style>
-@media print {
-    .navbar, .card-header, .card-footer, .btn {
-        display: none !important;
-    }
-    
-    .container-fluid {
-        margin: 0;
-        padding: 0;
-    }
-    
-    .card {
-        border: none;
-        box-shadow: none;
-    }
-    
-    .card-body {
-        padding: 20px;
-    }
-    
-    body {
-        font-size: 12px;
-    }
-    
-    h3 {
-        font-size: 18px;
-    }
-    
-    h4, h5 {
-        font-size: 14px;
-    }
-    
-    .badge {
-        font-size: 8px;
-        padding: 2px 4px;
-    }
-    
-    .alert {
-        font-size: 10px;
-        padding: 5px;
-    }
-}
-</style>
 {% endblock %}

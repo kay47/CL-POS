@@ -49,7 +49,7 @@
     }
 
     .product-card .card-img-top, .product-card .card-img-top.bg-light {
-        height: 200px !important;
+        height: 140px !important;
         object-fit: cover;
     }
 
@@ -58,19 +58,26 @@
         display: flex; align-items: center; justify-content: center;
     }
 
-    .product-card .card-body { padding: 0.85rem !important; }
-    .product-card .card-title { font-size: 0.875rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem; }
+    .product-card .card-body { padding: 0.6rem !important; }
+    .product-card .card-title { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.2rem; }
 
     /* pricing grid */
-    .price-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; margin: 0.6rem 0; }
-    .price-cell { background: var(--surface); border-radius: 6px; padding: 0.3rem 0.2rem; text-align: center; }
-    .price-cell .pc-label { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-muted); }
-    .price-cell .pc-price { font-size: 0.82rem; font-weight: 700; color: #059669; line-height: 1.2; }
-    .price-cell .pc-profit { font-size: 0.65rem; color: #2563eb; }
+    .price-grid-wrap {
+        overflow-x: auto;
+        margin: 0.45rem 0;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .price-grid-wrap::-webkit-scrollbar { display: none; }
+    .price-grid { display: flex; gap: 0.2rem; min-width: max-content; }
+    .price-cell { background: var(--surface); border-radius: 5px; padding: 0.22rem 0.32rem; text-align: center; min-width: 54px; flex-shrink: 0; }
+    .price-cell .pc-label { font-size: 0.58rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-muted); }
+    .price-cell .pc-price { font-size: 0.76rem; font-weight: 700; color: #059669; line-height: 1.2; white-space: nowrap; }
+    .price-cell .pc-profit { font-size: 0.6rem; color: #2563eb; white-space: nowrap; }
 
     /* add to cart buttons */
-    .cart-btns { display: flex; flex-direction: column; gap: 0.3rem; }
-    .cart-btns .btn { font-size: 0.78rem; padding: 0.4rem 0.6rem; justify-content: center; }
+    .cart-btns { display: flex; flex-direction: column; gap: 0.25rem; }
+    .cart-btns .btn { font-size: 0.73rem; padding: 0.3rem 0.5rem; justify-content: center; }
 
     /* ── Cart ── */
     .cart-header-card .card-header { background: linear-gradient(135deg, #059669, #10b981) !important; border: none; }
@@ -154,7 +161,7 @@
                 <!-- Product Grid -->
                 <div class="row g-3" id="productsContainer">
                     {% for product in products %}
-                    <div class="col-md-6 col-lg-4 product-item" data-name="{{ product.name.lower() }}" data-sku="{{ product.sku.lower() }}">
+                    <div class="col-sm-6 col-md-4 col-lg-3 col-xl-2 product-item" data-name="{{ product.name.lower() }}" data-sku="{{ product.sku.lower() }}">
                         <div class="card product-card h-100">
                             {% if product.has_image %}
                             <img src="{{ product.image_url }}" class="card-img-top" alt="{{ product.name }}">
@@ -166,13 +173,14 @@
 
                             <div class="card-body">
                                 <h6 class="card-title text-truncate" title="{{ product.name }}">{{ product.name }}</h6>
-                                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.4rem">
+                                <div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:0.3rem">
                                     <code>{{ product.sku }}</code>
                                     &nbsp;·&nbsp;
                                     <span style="color:#0891b2">{{ product.quantity }} pks · {{ product.total_units_available|int }} units</span>
                                 </div>
 
                                 <!-- Pricing Grid -->
+                                <div class="price-grid-wrap">
                                 <div class="price-grid">
                                     <div class="price-cell">
                                         <div class="pc-label">Full</div>
@@ -194,7 +202,8 @@
                                         <div class="pc-price">{{ "%.2f"|format(product.calculated_unit_price) }}</div>
                                         <div class="pc-profit">+{{ "%.2f"|format(product.get_profit_for_unit('unit')) }}</div>
                                     </div>
-                                </div>
+                                </div><!-- /.price-grid -->
+                                </div><!-- /.price-grid-wrap -->
 
                                 <!-- Add to Cart -->
                                 <div class="cart-btns">
