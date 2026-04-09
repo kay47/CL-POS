@@ -233,7 +233,7 @@
                             {% set margin = (product.total_profit / product.total_revenue * 100) if product.total_revenue > 0 else 0 %}
                             <div class="profit-pct">
                                 <span style="font-size:0.82rem;font-weight:700;color:var(--text-primary)">{{ "%.1f"|format(margin) }}%</span>
-                                <span class="profit-pct-bar" style="width:{{ [margin * 0.6, 50]|min }}px"></span>
+                                <span class="profit-pct-bar" style="width:{{ [(margin|float) * 0.6, 50]|min }}px"></span>
                             </div>
                         </td>
                     </tr>

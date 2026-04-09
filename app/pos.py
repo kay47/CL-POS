@@ -667,36 +667,40 @@ def list_sales():
 def profits_dashboard():
     """Comprehensive profits dashboard"""
     from datetime import timedelta
-    
+
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     period = request.args.get('period', '30')
-    
+
     if not start_date:
         start_date = (datetime.now() - timedelta(days=int(period))).date()
     else:
         start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-        
+
     if not end_date:
         end_date = datetime.now().date()
     else:
         end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-    
+
+    # BUG FIX: Convert date objects to datetime so the comparison covers the
+    # full end day (23:59:59) instead of cutting off at midnight.
+    start_dt = datetime.combine(start_date, datetime.min.time())   # start_date 00:00:00
+    end_dt   = datetime.combine(end_date,   datetime.max.time())   # end_date   23:59:59
+
     total_sales_query = Sale.query.filter(
         and_(
-            Sale.created_at >= start_date,
-            Sale.created_at <= end_date,
+            Sale.created_at >= start_dt,
+            Sale.created_at <= end_dt,
             Sale.status == 'completed'
         )
     )
-    
+
     total_revenue = total_sales_query.with_entities(func.sum(Sale.total_amount)).scalar() or 0
     total_profit = total_sales_query.with_entities(func.sum(Sale.total_profit)).scalar() or 0
     total_sales_count = total_sales_query.count()
-    
+
     total_cost = float(total_revenue) - float(total_profit)
-    profit_margin = (float(total_profit) / float(total_revenue) * 100) if total_revenue > 0 else 0
-    
+    profit_margin = (float(total_profit) / float(total_revenue) * 100) if total_revenue > 0 else 0.0
     daily_profits_raw = db.session.query(
         func.date(Sale.created_at).label('date'),
         func.sum(Sale.total_amount).label('revenue'),
@@ -704,26 +708,26 @@ def profits_dashboard():
         func.count(Sale.id).label('sales_count')
     ).filter(
         and_(
-            Sale.created_at >= start_date,
-            Sale.created_at <= end_date,
+            Sale.created_at >= start_dt,
+            Sale.created_at <= end_dt,
             Sale.status == 'completed'
         )
     ).group_by(func.date(Sale.created_at)).order_by('date').all()
-    
+
     daily_profits = []
     for row in daily_profits_raw:
         if isinstance(row.date, str):
             date_obj = datetime.strptime(row.date, '%Y-%m-%d').date()
         else:
             date_obj = row.date
-            
+
         daily_profits.append({
             'date': date_obj,
             'revenue': row.revenue,
             'profit': row.profit,
             'sales_count': row.sales_count
         })
-    
+
     product_profits = db.session.query(
         Product.name.label('product_name'),
         Product.sku.label('sku'),
@@ -732,12 +736,12 @@ def profits_dashboard():
         func.sum(SaleItem.price_at_sale * SaleItem.quantity).label('total_revenue')
     ).join(Sale).join(Product).filter(
         and_(
-            Sale.created_at >= start_date,
-            Sale.created_at <= end_date,
+            Sale.created_at >= start_dt,
+            Sale.created_at <= end_dt,
             Sale.status == 'completed'
         )
     ).group_by(Product.id, Product.name, Product.sku).order_by(text('total_profit DESC')).limit(10).all()
-    
+
     unit_profits = db.session.query(
         SaleItem.unit_type,
         func.sum(SaleItem.quantity).label('quantity_sold'),
@@ -745,36 +749,43 @@ def profits_dashboard():
         func.sum(SaleItem.price_at_sale * SaleItem.quantity).label('total_revenue')
     ).join(Sale).filter(
         and_(
-            Sale.created_at >= start_date,
-            Sale.created_at <= end_date,
+            Sale.created_at >= start_dt,
+            Sale.created_at <= end_dt,
             Sale.status == 'completed'
         )
     ).group_by(SaleItem.unit_type).all()
-    
+
+    # BUG FIX: func.strftime('%Y-%m', ...) is SQLite-only and silently returns
+    # nothing on PostgreSQL/MySQL. Group on the Python side instead — works on
+    # every database without extra dependencies.
     monthly_profits = []
     if (end_date - start_date).days > 30:
-        monthly_profits_raw = db.session.query(
-            func.strftime('%Y-%m', Sale.created_at).label('month'),
-            func.sum(Sale.total_amount).label('revenue'),
-            func.sum(Sale.total_profit).label('profit'),
-            func.count(Sale.id).label('sales_count')
+        monthly_raw = db.session.query(
+            Sale.created_at,
+            Sale.total_amount,
+            Sale.total_profit
         ).filter(
             and_(
-                Sale.created_at >= start_date,
-                Sale.created_at <= end_date,
+                Sale.created_at >= start_dt,
+                Sale.created_at <= end_dt,
                 Sale.status == 'completed'
             )
-        ).group_by(func.strftime('%Y-%m', Sale.created_at)).order_by('month').all()
-        
-        monthly_profits = []
-        for row in monthly_profits_raw:
-            monthly_profits.append({
-                'month': row.month,
-                'revenue': row.revenue,
-                'profit': row.profit,
-                'sales_count': row.sales_count
-            })
-    
+        ).all()
+
+        monthly_map = {}
+        for row in monthly_raw:
+            key = row.created_at.strftime('%Y-%m')
+            if key not in monthly_map:
+                monthly_map[key] = {'revenue': 0.0, 'profit': 0.0, 'sales_count': 0}
+            monthly_map[key]['revenue']      += float(row.total_amount or 0)
+            monthly_map[key]['profit']       += float(row.total_profit or 0)
+            monthly_map[key]['sales_count']  += 1
+
+        monthly_profits = [
+            {'month': k, **v}
+            for k, v in sorted(monthly_map.items())
+        ]
+
     return render_template('pos/profits_dashboard.html',
                          start_date=start_date,
                          end_date=end_date,
